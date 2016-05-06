@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+#
+import argparse
+import git
+import os
+import shutil
+import tempfile
+
+
+def update_patches(directory):
+    '''debuild's patch apply doesn't allow fuzz, but fuzz is often what happens
+    when applying a Debian patch to the master branch. `patch` itself is more
+    robust, so use that here to update the Debian patches.
+    '''
+    debian_dir = os.path.join(directory, 'debian')
+    if os.path.isfile(os.path.join(debian_dir, 'patches', 'ubuntu.series')):
+        series = os.path.join(debian_dir, 'patches', 'ubuntu.series')
+    elif os.path.isfile(os.path.join(debian_dir, 'patches', 'series')):
+        series = os.path.join(debian_dir, 'patches', 'series')
+    else:
+        return
+
+    with open(series, 'r') as f:
+        content = f.readlines()
+
+    if content:
+        try:
+            repo = git.Repo(directory)
+        except git.exc.InvalidGitRepositoryError:
+            raise RuntimeError('Directory %s is not Git-managed.' % directory)
+
+        repo.git.checkout('.')
+
+        tmp_dir = tempfile.mkdtemp()
+        filenames = []
+        for line in content:
+            filename = line.strip()
+            if filename[0] == '#':
+                # skip commented-out lines
+                continue
+            filenames.append(filename)
+
+            print('  Updating %s...' % filename)
+            repo.git.checkout('.')
+            # apply the patch
+            patch_path = os.path.join(debian_dir, 'patches', filename)
+            repo.git.apply(patch_path)
+            # write diff to temporary file
+            with open(os.path.join(tmp_dir, filename), 'w') as f:
+                f.write(repo.git.diff())
+                f.write('\n')
+
+        # move the files back over to debian/patches
+        repo.git.checkout('.')
+        for filename in filenames:
+            shutil.move(
+                    os.path.join(tmp_dir, filename),
+                    os.path.join(debian_dir, 'patches', filename)
+                    )
+
+    return
+
+
+def _parse_cmd_arguments():
+    parser = argparse.ArgumentParser(
+            description='Update patches builds to launchpad.'
+            )
+    parser.add_argument(
+            '--source', '-s',
+            type=str,
+            required=True,
+            help='source directory'
+            )
+    parser.add_argument(
+            '--debian', '-d',
+            type=str,
+            required=True,
+            help='debian/ directory'
+            )
+    parser.add_argument(
+            '--out', '-o',
+            type=str,
+            required=True,
+            help='output directory'
+            )
+    return parser.parse_args()
+
+
+def _copytree(source, dest):
+    '''Workaround until Python 3.5, fixing
+    <https://bugs.python.org/issue21697>, is available.
+    '''
+    import subprocess
+    command = 'cp -r %s %s' % (source, dest)
+    process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            close_fds=True
+            )
+    process.stdout.read()[:-1]
+    ret = process.wait()
+
+    if ret != 0:
+        import sys
+        sys.exit( "\nERROR: The command \n\n%s\n\nreturned a nonzero " \
+                  "exit status. The error message is \n\n%s\n\n" \
+                  "Abort.\n" % \
+                  ( command, process.stderr.read()[:-1] )
+                )
+
+    return
+
+
+def find_all_dirs(name, path):
+    # From http://stackoverflow.com/a/1724723/353337
+    result = []
+    for root, dirs, files in os.walk(path):
+        if name in dirs:
+            result.append(os.path.join(root, name))
+    return result
+
+
+def find_all_files(name, path):
+    # From http://stackoverflow.com/a/1724723/353337
+    result = []
+    for root, dirs, files in os.walk(path):
+        if name in files:
+            result.append(os.path.join(root, name))
+    return result
+
+
+def create_repo(source, debian, out):
+    _copytree(source, out)
+    _copytree(debian, os.path.join(out, 'debian'))
+
+    # Remove git-related entities to ensure a smooth creation of the repo later
+    try:
+        for dot_git in find_all_dirs('.git', out):
+            shutil.rmtree(dot_git)
+        for dot_gitignore in find_all_files('.gitignore', out):
+            os.remove(dot_gitignore)
+    except FileNotFoundError:
+        pass
+
+    repo = git.Repo.init(out)
+    repo.index.add('*')
+    repo.index.commit('import source, debian/')
+
+    update_patches(out)
+    repo.git.add(update=True)
+    repo.index.commit('updated patches')
+
+    return
+
+
+if __name__ == '__main__':
+    args = _parse_cmd_arguments()
+    create_repo(args.source, args.debian, args.out)

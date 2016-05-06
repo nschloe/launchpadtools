@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+'''
+Automatically create tarball and submit it to launchpad.
+'''
+import argparse
+import datetime
+import git
+from launchpadlib.launchpad import Launchpad
+import os
+import re
+import shutil
+import subprocess
+import tarfile
+
+
+def _get_name_from_changelog(changelog):
+    with open(changelog, 'r') as f:
+        first_line = f.readline()
+        name_search = re.search('( *[^ ]+).*', first_line, re.IGNORECASE)
+        if name_search:
+            return name_search.group(1)
+        else:
+            raise RuntimeError('Could not extract name from changelog.')
+
+
+def submit(
+        directory,
+        version,
+        ubuntu_releases,
+        resubmission,
+        slot,
+        dry,
+        ppa_string,
+        submit_id,
+        force=False
+        ):
+    # Retrieve the directory of this script
+    basedir = os.path.dirname(os.path.realpath(__file__))
+
+    # Extract the name from the changelog
+    name = _get_name_from_changelog(
+            os.path.join(directory, 'debian', 'changelog')
+            )
+
+    repo = git.Repo(directory)
+
+    # Create the tarball.
+    tarball_path = os.path.join('/tmp/', name + '.tar.gz')
+    prefix = name + '-' + version
+    print('Creating new archive %s...' % tarball_path)
+    with open(tarball_path, 'wb') as fh:
+        repo.archive(fh, prefix=prefix + '/', format='tar.gz')
+    print('done.')
+
+    tree_hash = repo.tree().hexsha
+
+    lp = Launchpad.login_anonymously('foo', 'production', None)
+    ppa_owner, ppa_name = tuple(ppa_string.split('/'))
+
+    owner = lp.people[ppa_owner]
+    ppa = owner.getPPAByName(name=ppa_name)
+    sources = ppa.getPublishedSources()
+
+    published_sources = [
+            d for d in sources.entries if d['status'] == 'Published'
+            ]
+
+    for ubuntu_release in ubuntu_releases:
+        # Check if this version has already been published.
+        published_in_series = [
+                d for d in published_sources
+                if d['distro_series_link'] ==
+                'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
+                ]
+        if published_in_series:
+            # Expect a package version of the form
+            # 2.1.0~20160504184836-01b3a567-trusty1
+            parts = published_in_series[0]['source_package_version'].split('-')
+            if len(parts) == 3 and parts[1] == tree_hash[:8]:
+                print('Same version already published for %s. Abort.' %
+                      ubuntu_release)
+                continue
+
+        # Create empty directory of the form
+        #     /tmp/trilinos/trusty/
+        release_dir = os.path.join('/tmp', name, ubuntu_release)
+        if os.path.exists(release_dir):
+            shutil.rmtree(release_dir)
+        # Use Python3's makedirs for recursive creation
+        os.makedirs(release_dir, exist_ok=True)
+
+        # Copy source tarball to
+        #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
+        tarball_dest = '%s_%s-%s.orig.tar.gz' % (name, version, tree_hash[:8])
+        shutil.copy2(tarball_path, os.path.join(release_dir, tarball_dest))
+        print(os.path.join(release_dir, tarball_dest))
+        # Unpack the tarball
+        os.chdir(release_dir)
+        tar = tarfile.open(tarball_dest)
+        tar.extractall()
+        tar.close()
+
+        os.chdir(release_dir)
+
+        # Use the `-` as a separator (instead of `~` as it's often used) to
+        # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
+        # it possible to increment `x` and have launchpad recognize it as a new
+        # version.
+        full_version = '%s-%s-%s%d' % \
+            (version, tree_hash[:8], ubuntu_release, resubmission)
+        if slot:
+            chlog_version = slot + ':' + full_version
+        else:
+            chlog_version = full_version
+
+        # Override changelog
+        utcnow = datetime.datetime.utcnow()
+        changelog = open(os.path.join(prefix, 'debian/changelog'), 'w')
+        changelog.write('''%s (%s) %s; urgency=low
+
+  * Initial release
+
+ -- %s  %s'''
+                        % (name, chlog_version,
+                           ubuntu_release,
+                           submit_id,
+                           utcnow.strftime('%a, %d %b %Y %T +0000')
+                           ))
+        changelog.close()
+
+        # Call debuild, the actual workhorse
+        os.chdir(prefix)
+        subprocess.check_call(
+                ['debuild',
+                 '-p%s' % os.path.join(basedir, 'mygpg'),
+                 '-S',  # build source package only
+                 '--lintian-opts', '-EvIL', '+pedantic'
+                 ]
+                )
+
+        # Submit to launchpad.
+        os.chdir(os.pardir)
+        if not dry:
+            print()
+            print('Uploading to PPA %s...' % ppa_string)
+            print()
+            subprocess.check_call([
+                'dput',
+                'ppa:%s' % ppa_string,
+                '%s_%s_source.changes' % (name, full_version)
+                ])
+            # Remove the upload file so we can upload again to another ppa
+            os.remove('%s_%s_source.ppa.upload'
+                      % (name, full_version)
+                      )
+
+    return
+
+
+def _parse_cmd_arguments():
+    parser = argparse.ArgumentParser(description='Submit builds to launchpad.')
+    parser.add_argument(
+        '-r', '--resubmission',
+        default=1,
+        help='resubmission index (default: 1)'
+        )
+    parser.add_argument(
+        '-d', '--directory',
+        help='Directory with source and debian/'
+        )
+    parser.add_argument(
+        '-u', '--ubuntu-releases',
+        help='Ubuntu releases to build for',
+        required=True,
+        nargs='+'
+        )
+    parser.add_argument(
+        '-p', '--ppa',
+        help='PPA to submit to',
+        type=str,
+        required=True
+        )
+    parser.add_argument(
+        '-v', '--version',
+        help='Package version',
+        type=str,
+        required=True
+        )
+    parser.add_argument(
+        '-l', '--slot',
+        help='Slot for the package (default: None)',
+        default=None,
+        type=str
+        )
+    parser.add_argument(
+        '-f', '--force',
+        help='Force submission even if build is already uploaded',
+        action='store_true',
+        default=False
+        )
+    parser.add_argument(
+        '-y', '--dry',
+        help='Dry run (do everything but the upload)',
+        action='store_true',
+        default=False
+        )
+    parser.add_argument(
+        '-i', '--submit-id',
+        help='submission ID (e.g., John Doe <john@doe.com>)',
+        type=str,
+        required=True
+        )
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = _parse_cmd_arguments()
+    submit(
+        args.directory,
+        args.version,
+        args.ubuntu_releases,
+        args.resubmission,
+        args.slot,
+        args.dry,
+        args.ppa,
+        args.submit_id,
+        args.force
+        )
