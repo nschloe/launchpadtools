@@ -33,11 +33,9 @@ def submit(
         dry,
         ppa_string,
         submit_id,
+        debuild_params,
         force=False
         ):
-    # Retrieve the directory of this script
-    basedir = os.path.dirname(os.path.realpath(__file__))
-
     # Extract the name from the changelog
     name = _get_name_from_changelog(
             os.path.join(directory, 'debian', 'changelog')
@@ -73,7 +71,7 @@ def submit(
                 if d['distro_series_link'] ==
                 'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
                 ]
-        if published_in_series:
+        if not force and published_in_series:
             # Expect a package version of the form
             # 2.1.0~20160504184836-01b3a567-trusty1
             parts = published_in_series[0]['source_package_version'].split('-')
@@ -133,7 +131,7 @@ def submit(
         os.chdir(prefix)
         subprocess.check_call(
                 ['debuild',
-                 '-p%s' % os.path.join(basedir, 'mygpg'),
+                 debuild_params,
                  '-S',  # build source package only
                  '--lintian-opts', '-EvIL', '+pedantic'
                  ]
@@ -206,6 +204,11 @@ def _parse_cmd_arguments():
         default=False
         )
     parser.add_argument(
+        '-b', '--debuild-params',
+        help='extra parameters passed to debuild',
+        type=str
+        )
+    parser.add_argument(
         '-i', '--submit-id',
         help='submission ID (e.g., John Doe <john@doe.com>)',
         type=str,
@@ -225,5 +228,6 @@ if __name__ == '__main__':
         args.dry,
         args.ppa,
         args.submit_id,
+        args.debuild_params,
         args.force
         )
