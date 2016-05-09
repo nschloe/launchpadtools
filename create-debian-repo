@@ -39,13 +39,18 @@ def update_patches(directory):
             if filename[0] == '#':
                 # skip commented-out lines
                 continue
-            filenames.append(filename)
 
-            print('  Updating %s...' % filename)
             repo.git.checkout('.')
             # apply the patch
             patch_path = os.path.join(debian_dir, 'patches', filename)
-            repo.git.apply(patch_path)
+            try:
+                repo.git.apply(patch_path)
+            except git.exc.GitCommandError:
+                # Patch cannot be applied properly. That happens, just pass on
+                # this one then.
+                continue
+
+            filenames.append(filename)
             # write diff to temporary file
             with open(os.path.join(tmp_dir, filename), 'w') as f:
                 f.write(repo.git.diff())
@@ -81,7 +86,6 @@ def _parse_cmd_arguments():
     parser.add_argument(
             '--out', '-o',
             type=str,
-            required=True,
             help='output directory'
             )
     return parser.parse_args()
@@ -132,9 +136,10 @@ def find_all_files(name, path):
     return result
 
 
-def create_repo(source, debian, out):
-    _copytree(source, out)
-    _copytree(debian, os.path.join(out, 'debian'))
+def create_repo(source_dir, debian_dir, out):
+    _copytree(os.path.join(source_dir, '*'), out)
+    assert not os.path.isdir(os.path.join(out, 'debian'))
+    _copytree(debian_dir, os.path.join(out, 'debian'))
 
     # Remove git-related entities to ensure a smooth creation of the repo later
     try:
@@ -158,4 +163,10 @@ def create_repo(source, debian, out):
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    create_repo(args.source, args.debian, args.out)
+    if args.out:
+        out = args.out
+        os.mkdir(out)
+    else:
+        out = tempfile.mkdtemp()
+    print(out)
+    create_repo(args.source, args.debian, out)
