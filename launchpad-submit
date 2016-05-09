@@ -33,6 +33,8 @@ def submit(
         dry,
         ppa_string,
         debuild_params,
+        debfullname,
+        debemail,
         force=False
         ):
     # Extract the name from the changelog
@@ -118,7 +120,12 @@ def submit(
                  '-v', chlog_version,
                  '--distribution', ubuntu_release,
                  'launchpad-submit update'
-                ])
+                ],
+                env={
+                    'DEBFULLNAME': debfullname,
+                    'DEBEMAIL': debemail
+                    }
+                )
 
         # Call debuild, the actual workhorse
         os.chdir(os.path.join(release_dir, prefix))
@@ -197,6 +204,18 @@ def _parse_cmd_arguments():
         default=False
         )
     parser.add_argument(
+        '-n', '--debfullname',
+        help='the submitter\'s full name',
+        required=True,
+        type=str
+        )
+    parser.add_argument(
+        '-e', '--debemail',
+        help='the submitter\'s email address',
+        required=True,
+        type=str
+        )
+    parser.add_argument(
         '-b', '--debuild-params',
         help='extra parameters passed to debuild',
         type=str
@@ -215,5 +234,7 @@ if __name__ == '__main__':
         args.dry,
         args.ppa,
         args.debuild_params,
+        args.debfullname,
+        args.debemail,
         args.force
         )
