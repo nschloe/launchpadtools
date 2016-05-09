@@ -32,7 +32,6 @@ def submit(
         slot,
         dry,
         ppa_string,
-        submit_id,
         debuild_params,
         force=False
         ):
@@ -91,8 +90,8 @@ def submit(
         # Copy source tarball to
         #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
         tarball_dest = '%s_%s-%s.orig.tar.gz' % (name, version, tree_hash[:8])
+
         shutil.copy2(tarball_path, os.path.join(release_dir, tarball_dest))
-        print(os.path.join(release_dir, tarball_dest))
         # Unpack the tarball
         os.chdir(release_dir)
         tar = tarfile.open(tarball_dest)
@@ -113,22 +112,16 @@ def submit(
             chlog_version = full_version
 
         # Override changelog
-        utcnow = datetime.datetime.utcnow()
-        changelog = open(os.path.join(prefix, 'debian/changelog'), 'w')
-        changelog.write('''%s (%s) %s; urgency=low
-
-  * Initial release
-
- -- %s  %s'''
-                        % (name, chlog_version,
-                           ubuntu_release,
-                           submit_id,
-                           utcnow.strftime('%a, %d %b %Y %T +0000')
-                           ))
-        changelog.close()
+        os.chdir(os.path.join(release_dir, prefix))
+        subprocess.check_call([
+                'dch',
+                 '-v', chlog_version,
+                 '--distribution', ubuntu_release,
+                 'launchpad-submit update'
+                ])
 
         # Call debuild, the actual workhorse
-        os.chdir(prefix)
+        os.chdir(os.path.join(release_dir, prefix))
         subprocess.check_call(
                 ['debuild',
                  debuild_params,
@@ -208,12 +201,6 @@ def _parse_cmd_arguments():
         help='extra parameters passed to debuild',
         type=str
         )
-    parser.add_argument(
-        '-i', '--submit-id',
-        help='submission ID (e.g., John Doe <john@doe.com>)',
-        type=str,
-        required=True
-        )
     return parser.parse_args()
 
 
@@ -227,7 +214,6 @@ if __name__ == '__main__':
         args.slot,
         args.dry,
         args.ppa,
-        args.submit_id,
         args.debuild_params,
         args.force
         )
