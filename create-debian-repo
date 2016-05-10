@@ -4,6 +4,7 @@
 import argparse
 import git
 import os
+import re
 import shutil
 import tempfile
 
@@ -136,10 +137,37 @@ def find_all_files(name, path):
     return result
 
 
-def create_repo(source_dir, debian_dir, out):
+def sanitize_directory_name(string):
+    return string \
+        .replace('\n', '-') \
+        .replace(' ', '-') \
+        .replace(':', '-') \
+        .replace('/', '-')
+
+
+def get_dir_from_git(git_url):
+    repo_dir = os.path.join('/tmp', sanitize_directory_name(git_url))
+    if os.path.isdir(repo_dir):
+        repo = git.Repo(repo_dir)
+        origin = repo.remotes.origin
+        origin.pull()
+    else:
+        git.Repo.clone_from(git_url, repo_dir)
+
+    return repo_dir
+
+
+def get_dir(source):
+    return get_dir_from_git(source)
+
+
+def create_repo(source, debian, out):
+    source_dir = get_dir(source)
     _copytree(os.path.join(source_dir, '*'), out)
     assert not os.path.isdir(os.path.join(out, 'debian'))
-    _copytree(debian_dir, os.path.join(out, 'debian'))
+
+    debian_dir = get_dir(debian)
+    _copytree(os.path.join(debian_dir, 'debian'), out)
 
     # Remove git-related entities to ensure a smooth creation of the repo later
     try:
