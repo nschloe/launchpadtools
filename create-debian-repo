@@ -81,7 +81,6 @@ def _parse_cmd_arguments():
     parser.add_argument(
             '--debian', '-d',
             type=str,
-            required=True,
             help='debian/ directory'
             )
     parser.add_argument(
@@ -164,12 +163,15 @@ def get_dir(source):
 def create_repo(source, debian, out):
     source_dir = get_dir(source)
     _copytree(os.path.join(source_dir, '*'), out)
-    assert not os.path.isdir(os.path.join(out, 'debian'))
 
-    debian_dir = get_dir(debian)
-    _copytree(os.path.join(debian_dir, 'debian'), out)
+    if debian:
+        assert not os.path.isdir(os.path.join(out, 'debian'))
+        debian_dir = get_dir(debian)
+        _copytree(os.path.join(debian_dir, 'debian'), out)
 
-    # Remove git-related entities to ensure a smooth creation of the repo later
+    assert os.path.isdir(os.path.join(out, 'debian'))
+
+    # Remove git-related entities to ensure a smooth creation of the repo below
     try:
         for dot_git in find_all_dirs('.git', out):
             shutil.rmtree(dot_git)

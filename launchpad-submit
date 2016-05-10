@@ -4,7 +4,6 @@
 Automatically create tarball and submit it to launchpad.
 '''
 import argparse
-import datetime
 import git
 from launchpadlib.launchpad import Launchpad
 import os
@@ -116,7 +115,8 @@ def submit(
         # Override changelog
         os.chdir(os.path.join(release_dir, prefix))
         subprocess.check_call([
-                'dch',
+                 'dch',
+                 '-b',  # force
                  '-v', chlog_version,
                  '--distribution', ubuntu_release,
                  'launchpad-submit update'
