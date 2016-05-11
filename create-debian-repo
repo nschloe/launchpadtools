@@ -72,7 +72,34 @@ def update_patches(directory):
                     )
 
         # shutil.rmtree(tmp_dir)
+    return
 
+
+def undo_patches(directory):
+    debian_dir = os.path.join(directory, 'debian')
+    if os.path.isfile(os.path.join(debian_dir, 'patches', 'ubuntu.series')):
+        series = os.path.join(debian_dir, 'patches', 'ubuntu.series')
+    elif os.path.isfile(os.path.join(debian_dir, 'patches', 'series')):
+        series = os.path.join(debian_dir, 'patches', 'series')
+    else:
+        return
+
+    with open(series, 'r') as f:
+        content = f.readlines()
+
+    for line in content:
+        filename = line.strip()
+        if filename[0] == '#':
+            # skip commented-out lines
+            continue
+
+        # unapply the patch
+        patch_path = os.path.join(debian_dir, 'patches', filename)
+        os.chdir(directory)
+        subprocess.check_call(
+            'patch -R -p 1 < %s' % patch_path,
+            shell=True
+            )
     return
 
 
@@ -171,13 +198,23 @@ def get_dir_from_dsc(url):
     os.mkdir(repo_dir)
     os.chdir(repo_dir)
     subprocess.check_call(
-            'dget %s' % (url),
+            'dget %s' % url,
             shell=True
             )
     # Find the appropriate subdirectory
+    directory = None
     for item in os.listdir(repo_dir):
         if os.path.isdir(item):
-            return item
+            directory = os.path.join(repo_dir, item)
+            break
+
+    assert directory
+
+    # dget applies patches. Undo that.
+    undo_patches(directory)
+
+    return directory
+
 
 
 def get_dir(source):
