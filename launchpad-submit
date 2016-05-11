@@ -34,9 +34,9 @@ def submit(
         slot,
         dry,
         ppa_string,
-        debuild_params,
         debfullname,
         debemail,
+        debuild_params='',
         version_override=None,
         version_append_hash=False,
         force=False
@@ -122,6 +122,11 @@ def submit(
 
         # Override changelog
         os.chdir(os.path.join(release_dir, prefix))
+        env = {}
+        if debfullname:
+            env['DEBFULLNAME'] = debfullname
+        if debemail:
+            env['DEBEMAIL'] = debemail
         subprocess.check_call([
                  'dch',
                  '-b',  # force
@@ -129,10 +134,7 @@ def submit(
                  '--distribution', ubuntu_release,
                  'launchpad-submit update'
                 ],
-                env={
-                    'DEBFULLNAME': debfullname,
-                    'DEBEMAIL': debemail
-                    }
+                env=env
                 )
 
         # Call debuild, the actual workhorse
@@ -219,19 +221,18 @@ def _parse_cmd_arguments():
     parser.add_argument(
         '-n', '--debfullname',
         help='the submitter\'s full name',
-        required=True,
         type=str
         )
     parser.add_argument(
         '-e', '--debemail',
         help='the submitter\'s email address',
-        required=True,
         type=str
         )
     parser.add_argument(
         '-b', '--debuild-params',
         help='extra parameters passed to debuild',
-        type=str
+        type=str,
+        default=''
         )
     return parser.parse_args()
 
@@ -245,9 +246,9 @@ if __name__ == '__main__':
         args.slot,
         args.dry,
         args.ppa,
-        args.debuild_params,
         args.debfullname,
         args.debemail,
+        args.debuild_params,
         args.version_override,
         args.version_append_hash,
         args.force

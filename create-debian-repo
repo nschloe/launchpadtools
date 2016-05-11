@@ -76,30 +76,6 @@ def update_patches(directory):
     return
 
 
-def _parse_cmd_arguments():
-    parser = argparse.ArgumentParser(
-            description='Update patches builds to launchpad.'
-            )
-    parser.add_argument(
-            '--orig', '-r',
-            type=str,
-            required=True,
-            help='orig source'
-            )
-    parser.add_argument(
-            '--debian', '-d',
-            type=str,
-            help='debian source'
-            )
-    parser.add_argument(
-            '--out', '-o',
-            type=str,
-            required=True,
-            help='output directory'
-            )
-    return parser.parse_args()
-
-
 def _copytree(source, dest):
     '''Workaround until Python 3.5, fixing
     <https://bugs.python.org/issue21697>, is available.
@@ -225,7 +201,7 @@ def get_dir(source):
     raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
 
-def create_repo(orig, debian, out):
+def create_repo(orig, debian, out, do_update_patches):
     orig_dir = get_dir(orig)
     _copytree(os.path.join(orig_dir, '*'), out)
 
@@ -249,13 +225,44 @@ def create_repo(orig, debian, out):
     repo.index.add('*')
     repo.index.commit('import orig, debian')
 
-    update_patches(out)
-    repo.git.add(update=True)
-    repo.index.commit('updated patches')
+    if do_update_patches:
+        update_patches(out)
+        repo.git.add(update=True)
+        repo.index.commit('updated patches')
 
     return
 
 
+def _parse_cmd_arguments():
+    parser = argparse.ArgumentParser(
+            description='Update patches builds to launchpad.'
+            )
+    parser.add_argument(
+            '--update-patches', '-u',
+            default=False,
+            action='store_true',
+            help='update patches (default: false)'
+            )
+    parser.add_argument(
+            '--orig', '-r',
+            type=str,
+            required=True,
+            help='orig source'
+            )
+    parser.add_argument(
+            '--debian', '-d',
+            type=str,
+            help='debian source'
+            )
+    parser.add_argument(
+            '--out', '-o',
+            type=str,
+            required=True,
+            help='output directory'
+            )
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    create_repo(args.orig, args.debian, args.out)
+    create_repo(args.orig, args.debian, args.out, args.update_patches)
