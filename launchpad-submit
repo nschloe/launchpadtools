@@ -13,19 +13,22 @@ import subprocess
 import tarfile
 
 
-def _get_name_from_changelog(changelog):
+def _get_info_from_changelog(changelog):
     with open(changelog, 'r') as f:
         first_line = f.readline()
-        name_search = re.search('( *[^ ]+).*', first_line, re.IGNORECASE)
-        if name_search:
-            return name_search.group(1)
+        search = re.search(
+                '^( *[^ ]+) *\(([^\)]+)\).*',
+                first_line,
+                re.IGNORECASE
+                )
+        if search:
+            return search.group(1), search.group(2)
         else:
             raise RuntimeError('Could not extract name from changelog.')
 
 
 def submit(
         directory,
-        version,
         ubuntu_releases,
         resubmission,
         slot,
@@ -34,14 +37,18 @@ def submit(
         debuild_params,
         debfullname,
         debemail,
+        version_override=None,
+        version_append_hash=False,
         force=False
         ):
-    # Extract the name from the changelog
-    name = _get_name_from_changelog(
+    name, version = _get_info_from_changelog(
             os.path.join(directory, 'debian', 'changelog')
             )
 
     repo = git.Repo(directory)
+
+    if version_override:
+        version = version_override
 
     # Create the tarball.
     tarball_path = os.path.join('/tmp/', name + '.tar.gz')
@@ -50,8 +57,6 @@ def submit(
     with open(tarball_path, 'wb') as fh:
         repo.archive(fh, prefix=prefix + '/', format='tar.gz')
     print('done.')
-
-    tree_hash_short = repo.tree().hexsha[:8]
 
     lp = Launchpad.login_anonymously('foo', 'production', None)
     ppa_owner, ppa_name = tuple(ppa_string.split('/'))
@@ -63,6 +68,10 @@ def submit(
     published_sources = [
             d for d in sources.entries if d['status'] == 'Published'
             ]
+
+    tree_hash_short = repo.tree().hexsha[:8]
+    if version_append_hash:
+        version += '-%s' % tree_hash_short
 
     for ubuntu_release in ubuntu_releases:
         # Check if this version has already been published.
@@ -90,7 +99,7 @@ def submit(
 
         # Copy source tarball to
         #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
-        tarball_dest = '%s_%s-%s.orig.tar.gz' % (name, version, tree_hash_short)
+        tarball_dest = '%s_%s.orig.tar.gz' % (name, version)
 
         shutil.copy2(tarball_path, os.path.join(release_dir, tarball_dest))
         # Unpack the tarball
@@ -105,8 +114,7 @@ def submit(
         # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
         # it possible to increment `x` and have launchpad recognize it as a new
         # version.
-        full_version = '%s-%s-%s%d' % \
-            (version, tree_hash_short, ubuntu_release, resubmission)
+        full_version = '%s-%s%d' % (version, ubuntu_release, resubmission)
         if slot:
             chlog_version = slot + ':' + full_version
         else:
@@ -180,10 +188,15 @@ def _parse_cmd_arguments():
         required=True
         )
     parser.add_argument(
-        '-v', '--version',
-        help='Package version',
-        type=str,
-        required=True
+        '-v', '--version-override',
+        help='Override package version',
+        type=str
+        )
+    parser.add_argument(
+        '-a', '--version-append-hash',
+        help='Append code hash to version (useful for deduplication)',
+        action='store_true',
+        default=False
         )
     parser.add_argument(
         '-l', '--slot',
@@ -227,7 +240,6 @@ if __name__ == '__main__':
     args = _parse_cmd_arguments()
     submit(
         args.directory,
-        args.version,
         args.ubuntu_releases,
         args.resubmission,
         args.slot,
@@ -236,5 +248,7 @@ if __name__ == '__main__':
         args.debuild_params,
         args.debfullname,
         args.debemail,
+        args.version_override,
+        args.version_append_hash,
         args.force
         )
