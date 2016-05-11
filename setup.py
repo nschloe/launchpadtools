@@ -4,7 +4,7 @@ import os
 from distutils.core import setup
 import codecs
 
-from launchpadlib import __name__, __version__, __author__, __author_email__
+from launchpadtools import __name__, __version__, __author__, __author_email__
 
 
 def read(fname):

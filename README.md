@@ -21,7 +21,7 @@ With `launchpad-backport`, it becomes easy: Just
   * add a new PPA on launchpad.net, and
   * execute
 ```
-launchpad-backport
+launchpad-backport \
   --orig "http://http.debian.net/debian/pool/main/m/metis/metis_5.1.0.dfsg-4.dsc" \
   --ubuntu-releases trusty \
   --ppa nschloe/metis-backports
