@@ -3,6 +3,8 @@
 #
 import argparse
 import launchpadtools
+import shutil
+import tempfile
 
 
 def _parse_cmd_arguments():
@@ -26,20 +28,32 @@ def _parse_cmd_arguments():
             type=str,
             help='debian source'
             )
-    parser.add_argument(
-            '--out', '-o',
-            type=str,
-            required=True,
-            help='output directory'
-            )
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
+    # create tempory directory
+    tmp_dir = tempfile.mkdtemp()
+
     launchpadtools.create_repo(
             args.orig,
             args.debian,
-            args.out,
+            tmp_dir,
             args.update_patches
             )
+    launchpadtools.submit(
+        tmp_dir,
+        args.ubuntu_releases,
+        args.resubmission,
+        args.slot,
+        args.ppa,
+        args.debfullname,
+        args.debemail,
+        args.debuild_params,
+        args.version_override,
+        args.version_append_hash,
+        args.force
+        )
+
+    shutil.rmtree(tmp_dir)
