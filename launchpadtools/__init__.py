@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-'''
-Automatically create tarball and submit it to launchpad.
-'''
 import git
 from launchpadlib.launchpad import Launchpad
 import os
@@ -11,6 +7,12 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+
+
+__name__ = 'launchpadtools'
+__version__ = '0.1.0'
+__author__ = 'Nico Schlömer'
+__author_email__ = 'nico.schloemer@gmail.com'
 
 
 def _get_info_from_changelog(changelog):
