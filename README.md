@@ -2,6 +2,8 @@ Launchpad tools
 ===============
 
 [![Code Health](https://landscape.io/github/nschloe/launchpadtools/master/landscape.svg?style=flat)](https://landscape.io/github/nschloe/launchpadtools/master)
+[![PyPi Version](https://img.shields.io/pypi/v/launchpadtools.svg)](https://pypi.python.org/pypi/launchpadtools)
+[![PyPi Downloads](https://img.shields.io/pypi/dm/launchpadtools.svg)](https://pypi.python.org/pypi/launchpadtools)
 
 
 Some tools for easing submission to launchpad.
