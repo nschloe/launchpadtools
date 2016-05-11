@@ -81,15 +81,15 @@ def _parse_cmd_arguments():
             description='Update patches builds to launchpad.'
             )
     parser.add_argument(
-            '--source', '-s',
+            '--orig', '-r',
             type=str,
             required=True,
-            help='source directory'
+            help='orig source'
             )
     parser.add_argument(
             '--debian', '-d',
             type=str,
-            help='debian/ directory'
+            help='debian source'
             )
     parser.add_argument(
             '--out', '-o',
@@ -165,13 +165,42 @@ def get_dir_from_git(git_url):
     return repo_dir
 
 
+def get_dir_from_svn(url):
+    repo_dir = os.path.join('/tmp', sanitize_directory_name(url))
+    if os.path.isdir(repo_dir):
+        os.chdir(repo_dir)
+        subprocess.check_call(
+                'svn up',
+                shell=True
+                )
+    else:
+        subprocess.check_call(
+                'svn checkout %s %s' % (url, repo_dir),
+                shell=True
+                )
+
+    return repo_dir
+
+
 def get_dir(source):
-    return get_dir_from_git(source)
+    try:
+        return get_dir_from_git(source)
+    except git.exc.GitCommandError:
+        pass
+    except git.exc.InvalidGitRepositoryError:
+        pass
+
+    try:
+        return get_dir_from_svn(source)
+    except git.exc.GitCommandError:
+        pass
+
+    raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
 
-def create_repo(source, debian, out):
-    source_dir = get_dir(source)
-    _copytree(os.path.join(source_dir, '*'), out)
+def create_repo(orig, debian, out):
+    orig_dir = get_dir(orig)
+    _copytree(os.path.join(orig_dir, '*'), out)
 
     if debian:
         assert not os.path.isdir(os.path.join(out, 'debian'))
@@ -191,7 +220,7 @@ def create_repo(source, debian, out):
 
     repo = git.Repo.init(out)
     repo.index.add('*')
-    repo.index.commit('import source, debian/')
+    repo.index.commit('import orig, debian')
 
     update_patches(out)
     repo.git.add(update=True)
@@ -202,4 +231,4 @@ def create_repo(source, debian, out):
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    create_repo(args.source, args.debian, args.out)
+    create_repo(args.orig, args.debian, args.out)

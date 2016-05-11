@@ -165,7 +165,7 @@ def _parse_cmd_arguments():
         )
     parser.add_argument(
         '-d', '--directory',
-        help='Directory with source and debian/'
+        help='Directory with orig and debian'
         )
     parser.add_argument(
         '-u', '--ubuntu-releases',
