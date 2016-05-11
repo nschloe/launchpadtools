@@ -289,7 +289,7 @@ def _copytree(source, dest):
 def _find_all_dirs(name, path):
     # From http://stackoverflow.com/a/1724723/353337
     result = []
-    for root, dirs, files in os.walk(path):
+    for root, dirs, _ in os.walk(path):
         if name in dirs:
             result.append(os.path.join(root, name))
     return result
@@ -298,7 +298,7 @@ def _find_all_dirs(name, path):
 def _find_all_files(name, path):
     # From http://stackoverflow.com/a/1724723/353337
     result = []
-    for root, dirs, files in os.walk(path):
+    for root, _, files in os.walk(path):
         if name in files:
             result.append(os.path.join(root, name))
     return result
