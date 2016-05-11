@@ -51,7 +51,7 @@ def submit(
         repo.archive(fh, prefix=prefix + '/', format='tar.gz')
     print('done.')
 
-    tree_hash = repo.tree().hexsha
+    tree_hash_short = repo.tree().hexsha[:8]
 
     lp = Launchpad.login_anonymously('foo', 'production', None)
     ppa_owner, ppa_name = tuple(ppa_string.split('/'))
@@ -75,7 +75,7 @@ def submit(
             # Expect a package version of the form
             # 2.1.0~20160504184836-01b3a567-trusty1
             parts = published_in_series[0]['source_package_version'].split('-')
-            if len(parts) == 3 and parts[1] == tree_hash[:8]:
+            if len(parts) == 3 and parts[1] == tree_hash_short:
                 print('Same version already published for %s. Abort.' %
                       ubuntu_release)
                 continue
@@ -90,7 +90,7 @@ def submit(
 
         # Copy source tarball to
         #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
-        tarball_dest = '%s_%s-%s.orig.tar.gz' % (name, version, tree_hash[:8])
+        tarball_dest = '%s_%s-%s.orig.tar.gz' % (name, version, tree_hash_short)
 
         shutil.copy2(tarball_path, os.path.join(release_dir, tarball_dest))
         # Unpack the tarball
@@ -106,7 +106,7 @@ def submit(
         # it possible to increment `x` and have launchpad recognize it as a new
         # version.
         full_version = '%s-%s-%s%d' % \
-            (version, tree_hash[:8], ubuntu_release, resubmission)
+            (version, tree_hash_short, ubuntu_release, resubmission)
         if slot:
             chlog_version = slot + ':' + full_version
         else:
