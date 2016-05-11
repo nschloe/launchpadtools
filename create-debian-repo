@@ -4,8 +4,8 @@
 import argparse
 import git
 import os
-import re
 import shutil
+import subprocess
 import tempfile
 
 
@@ -45,10 +45,16 @@ def update_patches(directory):
             # apply the patch
             patch_path = os.path.join(debian_dir, 'patches', filename)
             try:
-                repo.git.apply(patch_path)
-            except git.exc.GitCommandError:
+                # Don't use git.apply here: It doesn't understand fuzz.
+                os.chdir(directory)
+                subprocess.check_call(
+                    'patch -f -p 1 < %s' % patch_path,
+                    shell=True
+                    )
+            except subprocess.CalledProcessError:
                 # Patch cannot be applied properly. That happens, just pass on
                 # this one then.
+                print('\n  Patch NOT properly applied. Skipping.\n')
                 continue
 
             filenames.append(filename)
@@ -64,6 +70,8 @@ def update_patches(directory):
                     os.path.join(tmp_dir, filename),
                     os.path.join(debian_dir, 'patches', filename)
                     )
+
+        # shutil.rmtree(tmp_dir)
 
     return
 
@@ -86,6 +94,7 @@ def _parse_cmd_arguments():
     parser.add_argument(
             '--out', '-o',
             type=str,
+            required=True,
             help='output directory'
             )
     return parser.parse_args()
@@ -193,10 +202,4 @@ def create_repo(source, debian, out):
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    if args.out:
-        out = args.out
-        os.mkdir(out)
-    else:
-        out = tempfile.mkdtemp()
-    print(out)
-    create_repo(args.source, args.debian, out)
+    create_repo(args.source, args.debian, args.out)
