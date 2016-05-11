@@ -169,6 +169,12 @@ def get_dir_from_svn(url):
     repo_dir = os.path.join('/tmp', sanitize_directory_name(url))
     if os.path.isdir(repo_dir):
         os.chdir(repo_dir)
+        # Call `svn info` first since `svn up` returns exit code 0 even if the
+        # directory is not a repository.
+        subprocess.check_call(
+                'svn info',
+                shell=True
+                )
         subprocess.check_call(
                 'svn up',
                 shell=True
@@ -182,6 +188,22 @@ def get_dir_from_svn(url):
     return repo_dir
 
 
+def get_dir_from_dsc(url):
+    repo_dir = os.path.join('/tmp', sanitize_directory_name(url))
+    if os.path.isdir(repo_dir):
+        shutil.rmtree(repo_dir)
+    os.mkdir(repo_dir)
+    os.chdir(repo_dir)
+    subprocess.check_call(
+            'dget %s' % (url),
+            shell=True
+            )
+    # Find the appropriate subdirectory
+    for item in os.listdir(repo_dir):
+        if os.path.isdir(item):
+            return item
+
+
 def get_dir(source):
     try:
         return get_dir_from_git(source)
@@ -192,7 +214,12 @@ def get_dir(source):
 
     try:
         return get_dir_from_svn(source)
-    except git.exc.GitCommandError:
+    except subprocess.CalledProcessError:
+        pass
+
+    try:
+        return get_dir_from_dsc(source)
+    except subprocess.CalledProcessError:
         pass
 
     raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
