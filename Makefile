@@ -4,10 +4,10 @@ default:
 
 README.rst: README.md
 	pandoc README.md -o README.rst
-	python setup.py check -r -s || exit 1
+	python3 setup.py check -r -s || exit 1
 
 upload: setup.py README.rst
-	python setup.py sdist upload --sign
+	python3 setup.py sdist upload --sign
 
 V=`python -c "import launchpadtools; print(launchpadtools.__version__)"`
 tag:
