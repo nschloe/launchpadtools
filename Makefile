@@ -18,5 +18,5 @@ release: upload tag
 clean:
 	rm -rf \
 	 README.rst \
-	 pygmsh.egg-info/ \
+	 launchpadtools.egg-info/ \
 	 dist
