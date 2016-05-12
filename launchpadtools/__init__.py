@@ -30,9 +30,9 @@ def _get_info_from_changelog(changelog):
 
 
 def submit(
-        directory,
+        orig,
+        debian,
         ubuntu_releases,
-        resubmission,
         slot,
         dry,
         ppa_string,
@@ -41,24 +41,65 @@ def submit(
         debuild_params='',
         version_override=None,
         version_append_hash=False,
-        force=False
+        force=False,
+        do_update_patches=False
         ):
+    # Create repo.
+    repo_dir = tempfile.mkdtemp()
+    clone(orig, repo_dir)
+
+    # Remove git-related entities to ensure a smooth creation of the repo below
+    try:
+        for dot_git in _find_all_dirs('.git', repo_dir):
+            shutil.rmtree(dot_git)
+        for dot_gitignore in _find_all_files('.gitignore', repo_dir):
+            os.remove(dot_gitignore)
+    except FileNotFoundError:
+        pass
+
+    repo = git.Repo.init(repo_dir)
+    repo.index.add('*')
+    repo.index.commit('import orig')
+
+    # Add debian/ folder, but don't commit yet. (We need the version string
+    # to create the orig tarball.)
+    debian_dir = os.path.join(repo_dir, 'debian')
+    if debian:
+        assert not os.path.isdir(debian_dir)
+        debian_dir = clone(debian, debian_dir)
+    assert os.path.isdir(debian_dir)
+
     name, version = _get_info_from_changelog(
-            os.path.join(directory, 'debian', 'changelog')
+            os.path.join(debian_dir, 'changelog')
             )
-
-    repo = git.Repo(directory)
-
     if version_override:
         version = version_override
 
-    # Create the tarball.
-    tarball_path = os.path.join('/tmp/', name + '.tar.gz')
-    prefix = name + '-' + version
-    print('Creating new archive %s...' % tarball_path)
-    with open(tarball_path, 'wb') as fh:
+    # Dissect version in upstream, debian/ubuntu parts.
+    parts = version.split('-')
+    if re.match('[0-9]*(?:ubuntu[0-9]+)', parts[-1]):
+        upstream_version = '-'.join(parts[:-1])
+        debian_version = parts[-1]
+    else:
+        upstream_version = version
+        debian_version = None
+
+    # Create the orig tarball.
+    orig_tarball = os.path.join('/tmp/', name + '.tar.gz')
+    prefix = name + '-' + upstream_version
+    print('Creating new archive %s...' % orig_tarball)
+    with open(orig_tarball, 'wb') as fh:
         repo.archive(fh, prefix=prefix + '/', format='tar.gz')
     print('done.')
+
+    # Commit the debian/ folder
+    repo.git.add(update=True)
+    repo.index.commit('add ./debian')
+
+    if do_update_patches:
+        update_patches(repo_dir)
+        repo.git.add(update=True)
+        repo.index.commit('updated patches')
 
     lp = Launchpad.login_anonymously('foo', 'production', None)
     ppa_owner, ppa_name = tuple(ppa_string.split('/'))
@@ -72,8 +113,13 @@ def submit(
             ]
 
     tree_hash_short = repo.tree().hexsha[:8]
+    # Use the `-` as a separator (instead of `~` as it's often used) to
+    # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
+    # it possible to increment `x` and have launchpad recognize it as a new
+    # version.
+    full_version = upstream_version
     if version_append_hash:
-        version += '-%s' % tree_hash_short
+        full_version += '-%s' % tree_hash_short
 
     for ubuntu_release in ubuntu_releases:
         # Check if this version has already been published.
@@ -101,26 +147,23 @@ def submit(
 
         # Copy source tarball to
         #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
-        tarball_dest = '%s_%s.orig.tar.gz' % (name, version)
+        tarball_dest = '%s_%s.orig.tar.gz' % (name, full_version)
 
-        shutil.copy2(tarball_path, os.path.join(release_dir, tarball_dest))
+        shutil.copy2(orig_tarball, os.path.join(release_dir, tarball_dest))
         # Unpack the tarball
         os.chdir(release_dir)
         tar = tarfile.open(tarball_dest)
         tar.extractall()
         tar.close()
 
-        os.chdir(release_dir)
-
-        # Use the `-` as a separator (instead of `~` as it's often used) to
-        # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
-        # it possible to increment `x` and have launchpad recognize it as a new
-        # version.
-        full_version = '%s-%s%d' % (version, ubuntu_release, resubmission)
-        if slot:
-            chlog_version = slot + ':' + full_version
+        if debian_version:
+            chlog_version = '%s-%s' % (full_version, debian_version)
         else:
-            chlog_version = full_version
+            chlog_version = '%s-ubuntu1' % full_version
+
+        chlog_slot_version = chlog_version
+        if slot:
+            chlog_slot_version = slot + ':' + chlog_slot_version
 
         # Override changelog
         os.chdir(os.path.join(release_dir, prefix))
@@ -132,7 +175,7 @@ def submit(
         subprocess.check_call([
                  'dch',
                  '-b',  # force
-                 '-v', chlog_version,
+                 '-v', chlog_slot_version,
                  '--distribution', ubuntu_release,
                  'launchpad-submit update'
                 ],
@@ -140,6 +183,7 @@ def submit(
                 )
 
         # Call debuild, the actual workhorse
+        print(os.path.join(release_dir, prefix))
         os.chdir(os.path.join(release_dir, prefix))
         subprocess.check_call(
                 ['debuild',
@@ -158,11 +202,11 @@ def submit(
             subprocess.check_call([
                 'dput',
                 'ppa:%s' % ppa_string,
-                '%s_%s_source.changes' % (name, full_version)
+                '%s_%s_source.changes' % (name, chlog_version)
                 ])
             # Remove the upload file so we can upload again to another ppa
             os.remove('%s_%s_source.ppa.upload'
-                      % (name, full_version)
+                      % (name, chlog_version)
                       )
 
     return
@@ -369,9 +413,18 @@ def _get_dir(source):
     raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
 
-def create_repo(orig, debian, out, do_update_patches):
-    orig_dir = _get_dir(orig)
+def clone(source, out):
+    if os.path.isdir(source):
+        orig_dir = source
+    else:
+        orig_dir = _get_dir(source)
+
     _copytree(os.path.join(orig_dir, '*'), out)
+    return
+
+
+def create_repo(orig, debian, out, do_update_patches):
+    clone(orig, out)
 
     if debian:
         assert not os.path.isdir(os.path.join(out, 'debian'))

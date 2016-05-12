@@ -67,7 +67,6 @@ if __name__ == '__main__':
     launchpadtools.submit(
         tmp_dir,
         args.ubuntu_releases,
-        1,
         None,
         False,
         args.ppa,

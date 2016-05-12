@@ -10,13 +10,14 @@ import launchpadtools
 def _parse_cmd_arguments():
     parser = argparse.ArgumentParser(description='Submit builds to launchpad.')
     parser.add_argument(
-        '-r', '--resubmission',
-        default=1,
-        help='resubmission index (default: 1)'
+        '-r', '--orig',
+        required=True,
+        help='Orig source'
         )
     parser.add_argument(
-        '-d', '--directory',
-        help='Directory with orig and debian'
+        '-d', '--debian',
+        help='debian/ source',
+        default=None
         )
     parser.add_argument(
         '-u', '--ubuntu-releases',
@@ -81,9 +82,9 @@ def _parse_cmd_arguments():
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
     launchpadtools.submit(
-        args.directory,
+        args.orig,
+        args.debian,
         args.ubuntu_releases,
-        args.resubmission,
         args.slot,
         args.dry,
         args.ppa,
