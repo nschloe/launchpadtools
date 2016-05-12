@@ -15,6 +15,32 @@ __author__ = 'Nico Schlömer'
 __author_email__ = 'nico.schloemer@gmail.com'
 
 
+def _copytree(source, dest):
+    '''Workaround until Python 3.5, fixing
+    <https://bugs.python.org/issue21697>, is available.
+    '''
+    command = 'cp -r %s %s' % (source, dest)
+    process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            close_fds=True
+            )
+    process.stdout.read()[:-1]
+    ret = process.wait()
+
+    if ret != 0:
+        import sys
+        sys.exit( "\nERROR: The command \n\n%s\n\nreturned a nonzero " \
+                  "exit status. The error message is \n\n%s\n\n" \
+                  "Abort.\n" % \
+                  ( command, process.stderr.read()[:-1] )
+                )
+
+    return
+
+
 def _get_info_from_changelog(changelog):
     with open(changelog, 'r') as f:
         first_line = f.readline()
@@ -66,7 +92,8 @@ def submit(
     debian_dir = os.path.join(repo_dir, 'debian')
     if debian:
         assert not os.path.isdir(debian_dir)
-        debian_dir = clone(debian, debian_dir)
+        os.mkdir(debian_dir)
+        clone(debian, debian_dir)
     assert os.path.isdir(debian_dir)
 
     name, version = _get_info_from_changelog(
@@ -155,6 +182,16 @@ def submit(
         tar = tarfile.open(tarball_dest)
         tar.extractall()
         tar.close()
+
+        # copy over debian directory
+        if not os.path.isdir(os.path.join(release_dir, prefix, 'debian')):
+            print('dd', debian_dir)
+            assert os.path.isdir(debian_dir)
+            print(os.path.join(release_dir, prefix, 'debian'))
+            _copytree(
+                    debian_dir,
+                    os.path.join(release_dir, prefix, 'debian')
+                    )
 
         if debian_version:
             chlog_version = '%s-%s' % (full_version, debian_version)
@@ -275,32 +312,6 @@ def update_patches(directory):
                     )
 
         # shutil.rmtree(tmp_dir)
-    return
-
-
-def _copytree(source, dest):
-    '''Workaround until Python 3.5, fixing
-    <https://bugs.python.org/issue21697>, is available.
-    '''
-    command = 'cp -r %s %s' % (source, dest)
-    process = subprocess.Popen(
-            command,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            close_fds=True
-            )
-    process.stdout.read()[:-1]
-    ret = process.wait()
-
-    if ret != 0:
-        import sys
-        sys.exit( "\nERROR: The command \n\n%s\n\nreturned a nonzero " \
-                  "exit status. The error message is \n\n%s\n\n" \
-                  "Abort.\n" % \
-                  ( command, process.stderr.read()[:-1] )
-                )
-
     return
 
 
