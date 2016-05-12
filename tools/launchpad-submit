@@ -43,6 +43,12 @@ def _parse_cmd_arguments():
         default=False
         )
     parser.add_argument(
+        '--update-patches',
+        help='Automatically update patches',
+        action='store_true',
+        default=False
+        )
+    parser.add_argument(
         '-l', '--slot',
         help='Slot for the package (default: None)',
         default=None,
@@ -93,5 +99,6 @@ if __name__ == '__main__':
         args.debuild_params,
         args.version_override,
         args.version_append_hash,
-        args.force
+        args.force,
+        args.update_patches
         )

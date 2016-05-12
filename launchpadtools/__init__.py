@@ -120,7 +120,7 @@ def submit(
     print('done.')
 
     # Commit the debian/ folder
-    repo.git.add(update=True)
+    repo.git.add('debian/')
     repo.index.commit('add ./debian')
 
     if do_update_patches:
@@ -254,64 +254,75 @@ def update_patches(directory):
     when applying a Debian patch to the master branch. `patch` itself is more
     robust, so use that here to update the Debian patches.
     '''
+    print(directory)
     debian_dir = os.path.join(directory, 'debian')
-    if os.path.isfile(os.path.join(debian_dir, 'patches', 'ubuntu.series')):
-        series = os.path.join(debian_dir, 'patches', 'ubuntu.series')
-    elif os.path.isfile(os.path.join(debian_dir, 'patches', 'series')):
-        series = os.path.join(debian_dir, 'patches', 'series')
-    else:
-        return
+    os.chdir(debian_dir)
+    # if os.path.isfile(os.path.join(debian_dir, 'patches', 'ubuntu.series')):
+    #     series = os.path.join(debian_dir, 'patches', 'ubuntu.series')
+    # elif os.path.isfile(os.path.join(debian_dir, 'patches', 'series')):
+    #     series = os.path.join(debian_dir, 'patches', 'series')
+    # else:
+    #     return
 
-    with open(series, 'r') as f:
-        content = f.readlines()
+    # with open(series, 'r') as f:
+    #     content = f.readlines()
 
-    if content:
-        try:
-            repo = git.Repo(directory)
-        except git.exc.InvalidGitRepositoryError:
-            raise RuntimeError('Directory %s is not Git-managed.' % directory)
+    # try:
+    #     repo = git.Repo(directory)
+    # except git.exc.InvalidGitRepositoryError:
+    #     raise RuntimeError('Directory %s is not Git-managed.' % directory)
 
-        repo.git.checkout('.')
+    # repo.git.checkout('.')
 
-        tmp_dir = tempfile.mkdtemp()
-        filenames = []
-        for line in content:
-            filename = line.strip()
-            if filename[0] == '#':
-                # skip commented-out lines
-                continue
+    # os.chdir(directory)
+    subprocess.check_call(
+        'while quilt push; do quilt refresh; done',
+        shell=True
+        )
 
-            repo.git.checkout('.')
-            # apply the patch
-            patch_path = os.path.join(debian_dir, 'patches', filename)
-            try:
-                # Don't use git.apply here: It doesn't understand fuzz.
-                os.chdir(directory)
-                subprocess.check_call(
-                    'patch -f -p 1 < %s' % patch_path,
-                    shell=True
-                    )
-            except subprocess.CalledProcessError:
-                # Patch cannot be applied properly. That happens, just pass on
-                # this one then.
-                print('\n  Patch NOT properly applied. Skipping.\n')
-                continue
+    print(directory)
+    exit(1)
 
-            filenames.append(filename)
-            # write diff to temporary file
-            with open(os.path.join(tmp_dir, filename), 'w') as f:
-                f.write(repo.git.diff())
-                f.write('\n')
+    # if content:
+    #     tmp_dir = tempfile.mkdtemp()
+    #     filenames = []
+    #     for line in content:
+    #         filename = line.strip()
+    #         if filename[0] == '#':
+    #             # skip commented-out lines
+    #             continue
 
-        # move the files back over to debian/patches
-        repo.git.checkout('.')
-        for filename in filenames:
-            shutil.move(
-                    os.path.join(tmp_dir, filename),
-                    os.path.join(debian_dir, 'patches', filename)
-                    )
+    #         repo.git.checkout('.')
+    #         # apply the patch
+    #         patch_path = os.path.join(debian_dir, 'patches', filename)
+    #         try:
+    #             # Don't use git.apply here: It doesn't understand fuzz.
+    #             os.chdir(directory)
+    #             subprocess.check_call(
+    #                 'patch -f -p 1 < %s' % patch_path,
+    #                 shell=True
+    #                 )
+    #         except subprocess.CalledProcessError:
+    #             # Patch cannot be applied properly. That happens, just pass on
+    #             # this one then.
+    #             print('\n  Patch NOT properly applied. Skipping.\n')
+    #             continue
 
-        # shutil.rmtree(tmp_dir)
+    #         filenames.append(filename)
+    #         # write diff to temporary file
+    #         with open(os.path.join(tmp_dir, filename), 'w') as f:
+    #             f.write(repo.git.diff())
+    #             f.write('\n')
+
+    #     # move the files back over to debian/patches
+    #     repo.git.checkout('.')
+    #     for filename in filenames:
+    #         shutil.move(
+    #                 os.path.join(tmp_dir, filename),
+    #                 os.path.join(debian_dir, 'patches', filename)
+    #                 )
+
+    #     # shutil.rmtree(tmp_dir)
     return
 
 
