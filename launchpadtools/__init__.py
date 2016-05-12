@@ -234,34 +234,6 @@ def update_patches(directory):
     return
 
 
-def undo_patches(directory):
-    debian_dir = os.path.join(directory, 'debian')
-    if os.path.isfile(os.path.join(debian_dir, 'patches', 'ubuntu.series')):
-        series = os.path.join(debian_dir, 'patches', 'ubuntu.series')
-    elif os.path.isfile(os.path.join(debian_dir, 'patches', 'series')):
-        series = os.path.join(debian_dir, 'patches', 'series')
-    else:
-        return
-
-    with open(series, 'r') as f:
-        content = f.readlines()
-
-    for line in content:
-        filename = line.strip()
-        if filename[0] == '#':
-            # skip commented-out lines
-            continue
-
-        # unapply the patch
-        patch_path = os.path.join(debian_dir, 'patches', filename)
-        os.chdir(directory)
-        subprocess.check_call(
-            'patch -R -p 1 < %s' % patch_path,
-            shell=True
-            )
-    return
-
-
 def _copytree(source, dest):
     '''Workaround until Python 3.5, fixing
     <https://bugs.python.org/issue21697>, is available.
@@ -369,7 +341,8 @@ def _get_dir_from_dsc(url):
     assert directory
 
     # dget applies patches. Undo that.
-    undo_patches(directory)
+    os.chdir(directory)
+    subprocess.check_call(['quilt', 'pop',  '-a'])
 
     return directory
 
