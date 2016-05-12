@@ -254,75 +254,34 @@ def update_patches(directory):
     when applying a Debian patch to the master branch. `patch` itself is more
     robust, so use that here to update the Debian patches.
     '''
-    print(directory)
-    debian_dir = os.path.join(directory, 'debian')
-    os.chdir(debian_dir)
-    # if os.path.isfile(os.path.join(debian_dir, 'patches', 'ubuntu.series')):
-    #     series = os.path.join(debian_dir, 'patches', 'ubuntu.series')
-    # elif os.path.isfile(os.path.join(debian_dir, 'patches', 'series')):
-    #     series = os.path.join(debian_dir, 'patches', 'series')
-    # else:
-    #     return
+    try:
+        repo = git.Repo(directory)
+    except git.exc.InvalidGitRepositoryError:
+        raise RuntimeError('Directory %s is not Git-managed.' % directory)
 
-    # with open(series, 'r') as f:
-    #     content = f.readlines()
+    repo.git.checkout('.')
 
-    # try:
-    #     repo = git.Repo(directory)
-    # except git.exc.InvalidGitRepositoryError:
-    #     raise RuntimeError('Directory %s is not Git-managed.' % directory)
-
-    # repo.git.checkout('.')
-
-    # os.chdir(directory)
+    os.chdir(directory)
     subprocess.check_call(
         'while quilt push; do quilt refresh; done',
-        shell=True
+        shell=True,
+        env={
+            'QUILT_PATCHES': 'debian/patches'
+            }
         )
 
-    print(directory)
-    exit(1)
+    # undo all patches; only the changes in the debian/patches/ remain.
+    subprocess.check_call(
+        'quilt pop -a',
+        shell=True,
+        env={
+            'QUILT_PATCHES': 'debian/patches'
+            }
+        )
 
-    # if content:
-    #     tmp_dir = tempfile.mkdtemp()
-    #     filenames = []
-    #     for line in content:
-    #         filename = line.strip()
-    #         if filename[0] == '#':
-    #             # skip commented-out lines
-    #             continue
+    repo.index.add('*')
+    repo.index.commit('update patches')
 
-    #         repo.git.checkout('.')
-    #         # apply the patch
-    #         patch_path = os.path.join(debian_dir, 'patches', filename)
-    #         try:
-    #             # Don't use git.apply here: It doesn't understand fuzz.
-    #             os.chdir(directory)
-    #             subprocess.check_call(
-    #                 'patch -f -p 1 < %s' % patch_path,
-    #                 shell=True
-    #                 )
-    #         except subprocess.CalledProcessError:
-    #             # Patch cannot be applied properly. That happens, just pass on
-    #             # this one then.
-    #             print('\n  Patch NOT properly applied. Skipping.\n')
-    #             continue
-
-    #         filenames.append(filename)
-    #         # write diff to temporary file
-    #         with open(os.path.join(tmp_dir, filename), 'w') as f:
-    #             f.write(repo.git.diff())
-    #             f.write('\n')
-
-    #     # move the files back over to debian/patches
-    #     repo.git.checkout('.')
-    #     for filename in filenames:
-    #         shutil.move(
-    #                 os.path.join(tmp_dir, filename),
-    #                 os.path.join(debian_dir, 'patches', filename)
-    #                 )
-
-    #     # shutil.rmtree(tmp_dir)
     return
 
 
