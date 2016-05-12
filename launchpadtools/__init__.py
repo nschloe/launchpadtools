@@ -196,7 +196,16 @@ def submit(
         if debian_version:
             chlog_version = '%s-%s' % (full_version, debian_version)
         else:
-            chlog_version = '%s-ubuntu1' % full_version
+            # We cannot use "-ubuntu1" as a suffix here since we'd like to
+            # submit for multiple ubuntu releases. If the version strings were
+            # exactly the same, the error
+            #
+            #   File gmsh_2.12.1~20160512220459-ef262f68-ubuntu1.debian.tar.gz
+            #   already exists in Gmsh nightly, but uploaded version has
+            #   different contents.
+            #
+            # would be produced on upload.
+            chlog_version = '%s-%s1' % (full_version, ubuntu_release)
 
         chlog_slot_version = chlog_version
         if slot:
