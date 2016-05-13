@@ -26,4 +26,4 @@ def _parse_cmd_arguments():
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    launchpadtools.clone(args.source, args.out)
+    launchpadtools.clone.clone(args.source, args.out)
