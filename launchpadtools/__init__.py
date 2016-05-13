@@ -185,9 +185,7 @@ def submit(
 
         # copy over debian directory
         if not os.path.isdir(os.path.join(release_dir, prefix, 'debian')):
-            print('dd', debian_dir)
             assert os.path.isdir(debian_dir)
-            print(os.path.join(release_dir, prefix, 'debian'))
             _copytree(
                     debian_dir,
                     os.path.join(release_dir, prefix, 'debian')
@@ -229,7 +227,6 @@ def submit(
                 )
 
         # Call debuild, the actual workhorse
-        print(os.path.join(release_dir, prefix))
         os.chdir(os.path.join(release_dir, prefix))
         subprocess.check_call(
                 ['debuild',
