@@ -153,13 +153,13 @@ def submit(
                 'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
                 ]
         parts = published_in_series[0]['source_package_version'].split('-')
-        if not force and published_in_series and \
-           len(parts) == 3 and parts[1] == tree_hash_short:
+        already_published = len(parts) == 3 and parts[1] == tree_hash_short
+        if force or not already_published:
+            submit_releases.append(ubuntu_release)
+        else:
            # Expect a package version of the form
             # 2.1.0~20160504184836-01b3a567-trusty1
             print('Same version already published for %s.' % ubuntu_release)
-        else:
-            submit_relases.append(ubuntu_release)
 
     _submit(
         orig_tarball,
