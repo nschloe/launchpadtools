@@ -52,12 +52,6 @@ def _parse_cmd_arguments():
         default=False
         )
     parser.add_argument(
-        '-l', '--slot',
-        help='Slot for the package (default: None)',
-        default=None,
-        type=str
-        )
-    parser.add_argument(
         '-f', '--force',
         help='Force submission even if build is already uploaded',
         action='store_true',
@@ -98,7 +92,6 @@ if __name__ == '__main__':
             args.orig,
             args.debian,
             args.ubuntu_releases,
-            args.slot,
             args.dry,
             args.ppa,
             args.debfullname,

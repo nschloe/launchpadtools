@@ -72,7 +72,6 @@ def submit(
         orig,
         debian,
         ubuntu_releases,
-        slot,
         dry,
         ppa_string,
         debfullname,
@@ -179,7 +178,7 @@ def submit(
         debian_version,
         ubuntu_version,
         submit_releases,
-        slot,
+        epoch,
         dry,
         ppa_string,
         debfullname,
@@ -279,9 +278,6 @@ def _submit(
                     os.path.join(release_dir, prefix, 'debian')
                     )
 
-        if not ubuntu_version:
-            ubuntu_version = 1
-
         # We cannot use "-ubuntu1" as a suffix here since we'd like to submit
         # for multiple ubuntu releases. If the version strings were exactly the
         # same, the following error is produced on upload:
@@ -290,8 +286,13 @@ def _submit(
         #   already exists in Gmsh nightly, but uploaded version has different
         #   contents.
         #
-        chlog_version = '%s-%s%s%s' % \
-            (upstream_version, debian_version, ubuntu_release, ubuntu_version)
+        chlog_version = upstream_version + '-'
+        if debian_version:
+            chlog_version += debian_version
+        if ubuntu_version:
+            chlog_version += '%s%s' % (ubuntu_release, debian_version)
+        else:
+            chlog_version += '%s1' % ubuntu_release
 
         if slot:
             chlog_version = slot + ':' + chlog_version
