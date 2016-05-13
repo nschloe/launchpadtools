@@ -42,6 +42,24 @@ def _parse_package_version(version):
     return upstream, debian, ubuntu
 
 
+def _find_all_dirs(name, path):
+    # From http://stackoverflow.com/a/1724723/353337
+    result = []
+    for root, dirs, _ in os.walk(path):
+        if name in dirs:
+            result.append(os.path.join(root, name))
+    return result
+
+
+def _find_all_files(name, path):
+    # From http://stackoverflow.com/a/1724723/353337
+    result = []
+    for root, _, files in os.walk(path):
+        if name in files:
+            result.append(os.path.join(root, name))
+    return result
+
+
 def submit(
         orig,
         debian,
@@ -57,20 +75,20 @@ def submit(
         force=False,
         do_update_patches=False
         ):
-    # Create repo.
-    repo_dir = tempfile.mkdtemp()
-    clone.clone(orig, repo_dir)
-    print(orig)
-    print(repo_dir)
-    exit(1)
+    # Get dirs.
+    try:
+        repo_dir = tempfile.mkdtemp()
+        clone.clone(orig, repo_dir)
+        if debian:
+            # Create debian/ folder in a temporary directory
+            debian_dir = tempfile.mkdtemp()
+            clone.clone(debian, debian_dir)
+        else:
+            debian_dir = os.path.join(repo_dir, 'debian')
+            assert os.path.isdir(debian_dir)
+    except RuntimeError:
+        repo_dir, debian_dir = _get_dir_from_dsc(orig)
 
-    if debian:
-        # Create debian/ folder in a temporary directory
-        debian_dir = tempfile.mkdtemp()
-        clone.clone(debian, debian_dir)
-    else:
-        debian_dir = os.path.join(repo_dir, 'debian')
-        assert os.path.isdir(debian_dir)
     name, version = _get_info_from_changelog(
             os.path.join(debian_dir, 'changelog')
             )
@@ -273,3 +291,33 @@ def _update_patches(directory):
     repo.index.commit('update patches')
 
     return
+
+
+def _get_dir_from_dsc(url):
+    tmp_dir = tempfile.mkdtemp()
+    os.chdir(tmp_dir)
+    subprocess.check_call(
+            'dget %s' % url,
+            shell=True
+            )
+    # Find the subdirectory
+    directory = None
+    for item in os.listdir(tmp_dir):
+        if os.path.isdir(item):
+            directory = os.path.join(tmp_dir, item)
+            break
+
+    assert directory
+    assert os.path.isdir(directory)
+
+    # dget applies patches. Undo that.
+    os.chdir(directory)
+    subprocess.check_call(['quilt', 'pop',  '-a'])
+
+    # move debian/ to another directory
+    debian_dir = os.path.join(directory, 'debian')
+    assert os.path.isdir(debian_dir)
+    shutil.move(debian_dir, tmp_dir)
+    new_debian_dir = os.path.join(tmp_dir, 'debian')
+
+    return directory, new_debian_dir

@@ -2,28 +2,10 @@
 #
 import git
 import os
-import shutil
 import subprocess
+import tempfile
 
 from . import helpers
-
-
-def _find_all_dirs(name, path):
-    # From http://stackoverflow.com/a/1724723/353337
-    result = []
-    for root, dirs, _ in os.walk(path):
-        if name in dirs:
-            result.append(os.path.join(root, name))
-    return result
-
-
-def _find_all_files(name, path):
-    # From http://stackoverflow.com/a/1724723/353337
-    result = []
-    for root, _, files in os.walk(path):
-        if name in files:
-            result.append(os.path.join(root, name))
-    return result
 
 
 def _sanitize_directory_name(string):
@@ -69,59 +51,23 @@ def _get_dir_from_svn(url):
     return repo_dir
 
 
-def _get_dir_from_dsc(url):
-    repo_dir = os.path.join('/tmp', _sanitize_directory_name(url))
-    if os.path.isdir(repo_dir):
-        shutil.rmtree(repo_dir)
-    os.mkdir(repo_dir)
-    os.chdir(repo_dir)
-    subprocess.check_call(
-            'dget %s' % url,
-            shell=True
-            )
-    # Find the appropriate subdirectory
-    directory = None
-    for item in os.listdir(repo_dir):
-        if os.path.isdir(item):
-            directory = os.path.join(repo_dir, item)
-            break
-
-    assert directory
-
-    # dget applies patches. Undo that.
-    os.chdir(directory)
-    subprocess.check_call(['quilt', 'pop',  '-a'])
-
-    return directory
-
-
-
-def _get_dir(source):
-    try:
-        return _get_dir_from_git(source)
-    except git.exc.GitCommandError:
-        pass
-    except git.exc.InvalidGitRepositoryError:
-        pass
-
-    try:
-        return _get_dir_from_svn(source)
-    except subprocess.CalledProcessError:
-        pass
-
-    try:
-        return _get_dir_from_dsc(source)
-    except subprocess.CalledProcessError:
-        pass
-
-    raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
-
-
 def clone(source, out):
     if os.path.isdir(source):
         orig_dir = source
     else:
-        orig_dir = _get_dir(source)
+        try:
+            orig_dir = _get_dir_from_git(source)
+        except git.exc.GitCommandError:
+            pass
+        except git.exc.InvalidGitRepositoryError:
+            pass
+
+        try:
+            orig_dir = _get_dir_from_svn(source)
+        except subprocess.CalledProcessError:
+            pass
+
+        raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
     helpers.copytree(os.path.join(orig_dir, '*'), out)
     return
