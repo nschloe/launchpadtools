@@ -11,13 +11,16 @@ def _parse_cmd_arguments():
     parser = argparse.ArgumentParser(description='Submit builds to launchpad.')
     parser.add_argument(
         '-r', '--orig',
-        required=True,
         help='Orig source'
         )
     parser.add_argument(
         '-d', '--debian',
         help='debian/ source',
         default=None
+        )
+    parser.add_argument(
+        '-s', '--dsc',
+        help='DSC source'
         )
     parser.add_argument(
         '-u', '--ubuntu-releases',
@@ -87,18 +90,35 @@ def _parse_cmd_arguments():
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    launchpadtools.submit.submit(
-        args.orig,
-        args.debian,
-        args.ubuntu_releases,
-        args.slot,
-        args.dry,
-        args.ppa,
-        args.debfullname,
-        args.debemail,
-        args.debuild_params,
-        args.version_override,
-        args.version_append_hash,
-        args.force,
-        args.update_patches
-        )
+    if args.orig and args.dsc:
+        raise RuntimeError('Supply either one of --orig, --dsc, not both.')
+
+    if args.orig:
+        launchpadtools.submit.submit(
+            args.orig,
+            args.debian,
+            args.ubuntu_releases,
+            args.slot,
+            args.dry,
+            args.ppa,
+            args.debfullname,
+            args.debemail,
+            args.debuild_params,
+            args.version_override,
+            args.version_append_hash,
+            args.force,
+            args.update_patches
+            )
+    elif args.dsc:
+        launchpadtools.submit.submit_dsc(
+            args.dsc,
+            args.ubuntu_releases,
+            args.dry,
+            args.ppa,
+            args.debfullname,
+            args.debemail,
+            args.debuild_params,
+            args.force
+            )
+    else:
+        raise RuntimeError('Supply one of --orig, --dsc.')

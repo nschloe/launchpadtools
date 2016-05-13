@@ -75,19 +75,15 @@ def submit(
         force=False,
         do_update_patches=False
         ):
-    # Get dirs.
-    try:
-        repo_dir = tempfile.mkdtemp()
-        clone.clone(orig, repo_dir)
-        if debian:
-            # Create debian/ folder in a temporary directory
-            debian_dir = tempfile.mkdtemp()
-            clone.clone(debian, debian_dir)
-        else:
-            debian_dir = os.path.join(repo_dir, 'debian')
-            assert os.path.isdir(debian_dir)
-    except RuntimeError:
-        repo_dir, debian_dir = _get_dir_from_dsc(orig)
+    repo_dir = tempfile.mkdtemp()
+    clone.clone(orig, repo_dir)
+    if debian:
+        # Create debian/ folder in a temporary directory
+        debian_dir = tempfile.mkdtemp()
+        clone.clone(debian, debian_dir)
+    else:
+        debian_dir = os.path.join(repo_dir, 'debian')
+        assert os.path.isdir(debian_dir)
 
     name, version = _get_info_from_changelog(
             os.path.join(debian_dir, 'changelog')
@@ -114,10 +110,8 @@ def submit(
     # Create the orig tarball.
     orig_tarball = os.path.join('/tmp/', name + '.tar.gz')
     prefix = name + '-' + upstream_version
-    print('Creating new archive %s...' % orig_tarball)
     with open(orig_tarball, 'wb') as fh:
         repo.archive(fh, prefix=prefix + '/', format='tar.gz')
-    print('done.')
 
     if debian:
         # Add the debian/ folder
@@ -146,10 +140,11 @@ def submit(
     # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
     # it possible to increment `x` and have launchpad recognize it as a new
     # version.
-    full_version = upstream_version
     if version_append_hash:
-        full_version += '-%s' % tree_hash_short
+        upstream_version += '-%s' % tree_hash_short
 
+    # check which ubuntu series we need to submit to
+    submit_releases = []
     for ubuntu_release in ubuntu_releases:
         # Check if this version has already been published.
         published_in_series = [
@@ -157,15 +152,86 @@ def submit(
                 if d['distro_series_link'] ==
                 'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
                 ]
-        if not force and published_in_series:
-            # Expect a package version of the form
+        parts = published_in_series[0]['source_package_version'].split('-')
+        if not force and published_in_series and \
+           len(parts) == 3 and parts[1] == tree_hash_short:
+           # Expect a package version of the form
             # 2.1.0~20160504184836-01b3a567-trusty1
-            parts = published_in_series[0]['source_package_version'].split('-')
-            if len(parts) == 3 and parts[1] == tree_hash_short:
-                print('Same version already published for %s. Abort.' %
-                      ubuntu_release)
-                continue
+            print('Same version already published for %s.' % ubuntu_release)
+        else:
+            submit_relases.append(ubuntu_release)
 
+    _submit(
+        orig_tarball,
+        debian,
+        name,
+        upstream_version,
+        debian_version,
+        ubuntu_version,
+        submit_releases,
+        slot,
+        dry,
+        ppa_string,
+        debfullname,
+        debemail,
+        debuild_params='',
+        force=False
+        )
+    return
+
+
+def submit_dsc(
+        dsc,
+        ubuntu_releases,
+        dry,
+        ppa_string,
+        debfullname,
+        debemail,
+        debuild_params='',
+        force=False
+        ):
+    orig_tarball, debian_dir = _get_items_from_dsc(dsc)
+    name, version = _get_info_from_changelog(
+            os.path.join(debian_dir, 'changelog')
+            )
+    upstream_version, debian_version, ubuntu_version = \
+            _parse_package_version(version)
+    _submit(
+        orig_tarball,
+        debian_dir,
+        name,
+        upstream_version,
+        debian_version,
+        ubuntu_version,
+        ubuntu_releases,
+        None,  # slot
+        dry,
+        ppa_string,
+        debfullname,
+        debemail,
+        debuild_params='',
+        force=False
+        )
+    return
+
+
+def _submit(
+        orig_tarball,
+        debian_dir,
+        name,
+        upstream_version,
+        debian_version,
+        ubuntu_version,
+        ubuntu_releases,
+        slot,
+        dry,
+        ppa_string,
+        debfullname,
+        debemail,
+        debuild_params='',
+        force=False
+        ):
+    for ubuntu_release in ubuntu_releases:
         # Create empty directory of the form
         #     /tmp/trilinos/trusty/
         release_dir = os.path.join('/tmp', name, ubuntu_release)
@@ -176,7 +242,7 @@ def submit(
 
         # Copy source tarball to
         #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
-        tarball_dest = '%s_%s.orig.tar.gz' % (name, full_version)
+        tarball_dest = '%s_%s.orig.tar.gz' % (name, upstream_version)
 
         shutil.copy2(orig_tarball, os.path.join(release_dir, tarball_dest))
         # Unpack the tarball
@@ -184,6 +250,14 @@ def submit(
         tar = tarfile.open(tarball_dest)
         tar.extractall()
         tar.close()
+
+        # Find the subdirectory
+        prefix = None
+        for item in os.listdir(release_dir):
+            if os.path.isdir(item):
+                prefix = os.path.join(release_dir, item)
+                break
+        assert os.path.isdir(prefix)
 
         # copy over debian directory
         if not os.path.isdir(os.path.join(release_dir, prefix, 'debian')):
@@ -198,18 +272,17 @@ def submit(
 
         # We cannot use "-ubuntu1" as a suffix here since we'd like to submit
         # for multiple ubuntu releases. If the version strings were exactly the
-        # same, the error
+        # same, the following error is produced on upload:
         #
         #   File gmsh_2.12.1~20160512220459-ef262f68-ubuntu1.debian.tar.gz
         #   already exists in Gmsh nightly, but uploaded version has different
         #   contents.
         #
-        # would be produced on upload.
-        chlog_slot_version = '%s-%s%s%s' % \
-                (full_version, debian_version, ubuntu_release, ubuntu_version)
+        chlog_version = '%s-%s%s%s' % \
+            (upstream_version, debian_version, ubuntu_release, ubuntu_version)
 
         if slot:
-            chlog_slot_version = slot + ':' + chlog_slot_version
+            chlog_version = slot + ':' + chlog_version
 
         # Override changelog
         os.chdir(os.path.join(release_dir, prefix))
@@ -221,7 +294,7 @@ def submit(
         subprocess.check_call([
                  'dch',
                  '-b',  # force
-                 '-v', chlog_slot_version,
+                 '-v', chlog_version,
                  '--distribution', ubuntu_release,
                  'launchpad-submit update'
                 ],
@@ -247,12 +320,8 @@ def submit(
             subprocess.check_call([
                 'dput',
                 'ppa:%s' % ppa_string,
-                '%s_%s_source.changes' % (name, chlog_slot_version)
+                '%s_%s_source.changes' % (name, chlog_version)
                 ])
-            # Remove the upload file so we can upload again to another ppa
-            os.remove('%s_%s_source.ppa.upload'
-                      % (name, chlog_slot_version)
-                      )
 
     return
 
@@ -293,31 +362,29 @@ def _update_patches(directory):
     return
 
 
-def _get_dir_from_dsc(url):
+def _get_items_from_dsc(url):
     tmp_dir = tempfile.mkdtemp()
     os.chdir(tmp_dir)
     subprocess.check_call(
             'dget %s' % url,
             shell=True
             )
+
     # Find the subdirectory
     directory = None
     for item in os.listdir(tmp_dir):
         if os.path.isdir(item):
             directory = os.path.join(tmp_dir, item)
             break
-
-    assert directory
-    assert os.path.isdir(directory)
-
-    # dget applies patches. Undo that.
-    os.chdir(directory)
-    subprocess.check_call(['quilt', 'pop',  '-a'])
-
-    # move debian/ to another directory
     debian_dir = os.path.join(directory, 'debian')
-    assert os.path.isdir(debian_dir)
-    shutil.move(debian_dir, tmp_dir)
-    new_debian_dir = os.path.join(tmp_dir, 'debian')
 
-    return directory, new_debian_dir
+    # Find the orig tarball
+    orig_tarball = None
+    for file in os.listdir(tmp_dir):
+        if os.path.isfile(file) and re.search('\.orig\.', file):
+            orig_tarball = os.path.join(tmp_dir, file)
+            break
+
+    assert orig_tarball
+
+    return orig_tarball, debian_dir
