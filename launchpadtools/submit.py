@@ -244,7 +244,7 @@ def _submit(
         #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
         # Preserve file type.
         _, ext = os.path.splitext(orig_tarball)
-        tarball_dest = '%s_%s.orig.tar.%s' % (name, upstream_version, ext)
+        tarball_dest = '%s_%s.orig.tar%s' % (name, upstream_version, ext)
 
         shutil.copy2(orig_tarball, os.path.join(release_dir, tarball_dest))
         # Unpack the tarball
