@@ -55,6 +55,22 @@ def _get_info_from_changelog(changelog):
             raise RuntimeError('Could not extract name from changelog.')
 
 
+def _parse_package_version(version):
+    # Dissect version in upstream, debian/ubuntu parts.
+    parts = version.split('-')
+    m = re.match('([0-9]*)[a-z]*([0-9]*)', parts[-1])
+    if m:
+        upstream = '-'.join(parts[:-1])
+        debian = m.group(1)
+        ubuntu = m.group(2)
+    else:
+        upstream = version
+        debian = None
+        ubuntu = None
+
+    return upstream, debian, ubuntu
+
+
 def submit(
         orig,
         debian,
@@ -73,7 +89,27 @@ def submit(
     # Create repo.
     repo_dir = tempfile.mkdtemp()
     clone(orig, repo_dir)
+    print(orig)
+    print(repo_dir)
+    exit(1)
 
+    if debian:
+        # Create debian/ folder in a temporary directory
+        debian_dir = tempfile.mkdtemp()
+        clone(debian, debian_dir)
+    else:
+        debian_dir = os.path.join(repo_dir, 'debian')
+        assert os.path.isdir(debian_dir)
+    name, version = _get_info_from_changelog(
+            os.path.join(debian_dir, 'changelog')
+            )
+    if version_override:
+        version = version_override
+    # Dissect version in upstream, debian/ubuntu parts.
+    upstream_version, debian_version, ubuntu_version = \
+        _parse_package_version(version)
+
+    # Create git repo.
     # Remove git-related entities to ensure a smooth creation of the repo below
     try:
         for dot_git in _find_all_dirs('.git', repo_dir):
@@ -82,34 +118,9 @@ def submit(
             os.remove(dot_gitignore)
     except FileNotFoundError:
         pass
-
     repo = git.Repo.init(repo_dir)
     repo.index.add('*')
     repo.index.commit('import orig')
-
-    # Add debian/ folder, but don't commit yet. (We need the version string
-    # to create the orig tarball.)
-    debian_dir = os.path.join(repo_dir, 'debian')
-    if debian:
-        assert not os.path.isdir(debian_dir)
-        os.mkdir(debian_dir)
-        clone(debian, debian_dir)
-    assert os.path.isdir(debian_dir)
-
-    name, version = _get_info_from_changelog(
-            os.path.join(debian_dir, 'changelog')
-            )
-    if version_override:
-        version = version_override
-
-    # Dissect version in upstream, debian/ubuntu parts.
-    parts = version.split('-')
-    if re.match('[0-9]*(?:ubuntu[0-9]+)', parts[-1]):
-        upstream_version = '-'.join(parts[:-1])
-        debian_version = parts[-1]
-    else:
-        upstream_version = version
-        debian_version = None
 
     # Create the orig tarball.
     orig_tarball = os.path.join('/tmp/', name + '.tar.gz')
@@ -119,14 +130,16 @@ def submit(
         repo.archive(fh, prefix=prefix + '/', format='tar.gz')
     print('done.')
 
-    # Commit the debian/ folder
-    repo.git.add('debian/')
-    repo.index.commit('add ./debian')
+    if debian:
+        # Add the debian/ folder
+        _copytree(debian_dir, repo_dir)
+        repo.git.add('debian/')
+        repo.index.commit('add ./debian')
 
-    if do_update_patches:
-        update_patches(repo_dir)
-        repo.git.add(update=True)
-        repo.index.commit('updated patches')
+        if do_update_patches:
+            update_patches(repo_dir)
+            repo.git.add(update=True)
+            repo.index.commit('updated patches')
 
     lp = Launchpad.login_anonymously('foo', 'production', None)
     ppa_owner, ppa_name = tuple(ppa_string.split('/'))
@@ -191,21 +204,21 @@ def submit(
                     os.path.join(release_dir, prefix, 'debian')
                     )
 
-        if debian_version:
-            chlog_version = '%s-%s' % (full_version, debian_version)
-        else:
-            # We cannot use "-ubuntu1" as a suffix here since we'd like to
-            # submit for multiple ubuntu releases. If the version strings were
-            # exactly the same, the error
-            #
-            #   File gmsh_2.12.1~20160512220459-ef262f68-ubuntu1.debian.tar.gz
-            #   already exists in Gmsh nightly, but uploaded version has
-            #   different contents.
-            #
-            # would be produced on upload.
-            chlog_version = '%s-%s1' % (full_version, ubuntu_release)
+        if not ubuntu_version:
+            ubuntu_version = 1
 
-        chlog_slot_version = chlog_version
+        # We cannot use "-ubuntu1" as a suffix here since we'd like to submit
+        # for multiple ubuntu releases. If the version strings were exactly the
+        # same, the error
+        #
+        #   File gmsh_2.12.1~20160512220459-ef262f68-ubuntu1.debian.tar.gz
+        #   already exists in Gmsh nightly, but uploaded version has different
+        #   contents.
+        #
+        # would be produced on upload.
+        chlog_slot_version = '%s-%s%s%s' % \
+                (full_version, debian_version, ubuntu_release, ubuntu_version)
+
         if slot:
             chlog_slot_version = slot + ':' + chlog_slot_version
 
@@ -245,11 +258,11 @@ def submit(
             subprocess.check_call([
                 'dput',
                 'ppa:%s' % ppa_string,
-                '%s_%s_source.changes' % (name, chlog_version)
+                '%s_%s_source.changes' % (name, chlog_slot_version)
                 ])
             # Remove the upload file so we can upload again to another ppa
             os.remove('%s_%s_source.ppa.upload'
-                      % (name, chlog_version)
+                      % (name, chlog_slot_version)
                       )
 
     return
