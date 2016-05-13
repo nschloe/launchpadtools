@@ -55,19 +55,24 @@ def clone(source, out):
     if os.path.isdir(source):
         orig_dir = source
     else:
-        try:
-            orig_dir = _get_dir_from_git(source)
-        except git.exc.GitCommandError:
-            pass
-        except git.exc.InvalidGitRepositoryError:
-            pass
+        orig_dir = None
 
-        try:
-            orig_dir = _get_dir_from_svn(source)
-        except subprocess.CalledProcessError:
-            pass
+        if not orig_dir:
+            try:
+                orig_dir = _get_dir_from_git(source)
+            except git.exc.GitCommandError:
+                pass
+            except git.exc.InvalidGitRepositoryError:
+                pass
 
-        raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
+        if not orig_dir:
+            try:
+                orig_dir = _get_dir_from_svn(source)
+            except subprocess.CalledProcessError:
+                pass
+
+        if not orig_dir:
+            raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
     helpers.copytree(os.path.join(orig_dir, '*'), out)
     return
