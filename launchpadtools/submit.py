@@ -27,10 +27,18 @@ def _get_info_from_changelog(changelog):
 
 
 def _parse_package_version(version):
-    # Dissect version in upstream, debian/ubuntu parts.
+    '''Dissect version in upstream, debian/ubuntu parts.
+    '''
+    m = re.match('(([0-9]+):)?(.*)', version)
+    if m:
+        epoch = m.group(2)
+        version = m.group(3)
+    else:
+        epoch = None
+
     parts = version.split('-')
     m = re.match('([0-9]*)[a-z]*([0-9]*)', parts[-1])
-    if m:
+    if len(parts) > 1 and m:
         upstream = '-'.join(parts[:-1])
         debian = m.group(1)
         ubuntu = m.group(2)
@@ -39,7 +47,7 @@ def _parse_package_version(version):
         debian = None
         ubuntu = None
 
-    return upstream, debian, ubuntu
+    return epoch, upstream, debian, ubuntu
 
 
 def _find_all_dirs(name, path):
@@ -88,11 +96,13 @@ def submit(
     name, version = _get_info_from_changelog(
             os.path.join(debian_dir, 'changelog')
             )
-    if version_override:
-        version = version_override
+
     # Dissect version in upstream, debian/ubuntu parts.
-    upstream_version, debian_version, ubuntu_version = \
+    epoch, upstream_version, debian_version, ubuntu_version = \
         _parse_package_version(version)
+
+    if version_override:
+        upstream_version = version_override
 
     # Create git repo.
     # Remove git-related entities to ensure a smooth creation of the repo below
@@ -194,7 +204,7 @@ def submit_dsc(
     name, version = _get_info_from_changelog(
             os.path.join(debian_dir, 'changelog')
             )
-    upstream_version, debian_version, ubuntu_version = \
+    epoch, upstream_version, debian_version, ubuntu_version = \
             _parse_package_version(version)
     _submit(
         orig_tarball,
@@ -204,7 +214,7 @@ def submit_dsc(
         debian_version,
         ubuntu_version,
         ubuntu_releases,
-        None,  # slot
+        epoch,
         dry,
         ppa_string,
         debfullname,
