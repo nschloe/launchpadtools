@@ -421,34 +421,3 @@ def clone(source, out):
 
     _copytree(os.path.join(orig_dir, '*'), out)
     return
-
-
-def create_repo(orig, debian, out, do_update_patches):
-    clone(orig, out)
-
-    if debian:
-        assert not os.path.isdir(os.path.join(out, 'debian'))
-        debian_dir = _get_dir(debian)
-        _copytree(os.path.join(debian_dir, 'debian'), out)
-
-    assert os.path.isdir(os.path.join(out, 'debian'))
-
-    # Remove git-related entities to ensure a smooth creation of the repo below
-    try:
-        for dot_git in _find_all_dirs('.git', out):
-            shutil.rmtree(dot_git)
-        for dot_gitignore in _find_all_files('.gitignore', out):
-            os.remove(dot_gitignore)
-    except FileNotFoundError:
-        pass
-
-    repo = git.Repo.init(out)
-    repo.index.add('*')
-    repo.index.commit('import orig, debian')
-
-    if do_update_patches:
-        update_patches(out)
-        repo.git.add(update=True)
-        repo.index.commit('updated patches')
-
-    return
