@@ -38,7 +38,7 @@ def _parse_package_version(version):
         epoch = None
 
     parts = version.split('-')
-    m = re.match('([0-9]*)[a-z]*([0-9]*)', parts[-1])
+    m = re.match('([0-9\.]*)[a-z]*([0-9\.]*)', parts[-1])
     if len(parts) > 1 and m:
         upstream = '-'.join(parts[:-1])
         debian = m.group(1)
@@ -222,6 +222,7 @@ def submit_dsc(
             )
     epoch, upstream_version, debian_version, ubuntu_version = \
         _parse_package_version(version)
+
     _submit(
         orig_tarball,
         debian_dir,
