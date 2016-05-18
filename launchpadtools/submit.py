@@ -409,16 +409,19 @@ def _get_items_from_dsc(url):
             pass
 
         filenames = []
-        line = f.readline().strip()
-        while line != '':
+        while True:
             # The lines have the form
             #
             # 74c21e7d24df6f98db139... 1681868 git-buildpackage_0.7.4.tar.xz
             #
             # and we're interested in the last part, the file name.
-            m = re.match(' *[^ ]+ *[^ ]+ *([^ ]+).*', line)
-            filenames.append(m.group(1))
             line = f.readline().strip()
+            m = re.match(' *[a-z0-9]+ +[0-9]+ +([^ ]+).*', line)
+            if m:
+                filenames.append(m.group(1))
+            else:
+                # bail on the first line that doesn't match
+                break
 
     if len(filenames) == 1:
         orig_tarball = os.path.join(tmp_dir, filenames[0])
