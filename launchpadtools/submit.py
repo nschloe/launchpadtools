@@ -12,6 +12,7 @@ import tempfile
 from . import clone
 from . import helpers
 
+
 def _get_info_from_changelog(changelog):
     with open(changelog, 'r') as f:
         first_line = f.readline()
@@ -166,7 +167,7 @@ def submit(
         if force or not already_published:
             submit_releases.append(ubuntu_release)
         else:
-           # Expect a package version of the form
+            # Expect a package version of the form
             # 2.1.0~20160504184836-01b3a567-trusty1
             print('Same version already published for %s.' % ubuntu_release)
 
@@ -200,11 +201,27 @@ def submit_dsc(
         force=False
         ):
     orig_tarball, debian_dir = _get_items_from_dsc(dsc)
+
+    if not debian_dir:
+        tmp_dir = tempfile.mkdtemp()
+        os.chdir(tmp_dir)
+        tar = tarfile.open(orig_tarball)
+        tar.extractall()
+        tar.close()
+
+        # Find the debian subdirectory
+        subdir = None
+        for item in os.listdir(tmp_dir):
+                if os.path.isdir(item):
+                        subdir = os.path.join(tmp_dir, item)
+                        break
+        debian_dir = os.path.join(tmp_dir, subdir, 'debian')
+
     name, version = _get_info_from_changelog(
             os.path.join(debian_dir, 'changelog')
             )
     epoch, upstream_version, debian_version, ubuntu_version = \
-            _parse_package_version(version)
+        _parse_package_version(version)
     _submit(
         orig_tarball,
         debian_dir,
@@ -270,13 +287,14 @@ def _submit(
                 break
         assert os.path.isdir(prefix)
 
-        # copy over debian directory
-        if not os.path.isdir(os.path.join(release_dir, prefix, 'debian')):
-            assert os.path.isdir(debian_dir)
-            helpers.copytree(
-                    debian_dir,
-                    os.path.join(release_dir, prefix, 'debian')
-                    )
+        if debian_dir:
+            # copy over debian directory
+            if not os.path.isdir(os.path.join(release_dir, prefix, 'debian')):
+                assert os.path.isdir(debian_dir)
+                helpers.copytree(
+                        debian_dir,
+                        os.path.join(release_dir, prefix, 'debian')
+                        )
 
         # We cannot use "-ubuntu1" as a suffix here since we'd like to submit
         # for multiple ubuntu releases. If the version strings were exactly the
@@ -383,21 +401,48 @@ def _get_items_from_dsc(url):
             shell=True
             )
 
-    # Find the subdirectory
-    directory = None
-    for item in os.listdir(tmp_dir):
-        if os.path.isdir(item):
-            directory = os.path.join(tmp_dir, item)
-            break
-    debian_dir = os.path.join(directory, 'debian')
+    dsc_filename = os.path.basename(url)
 
-    # Find the orig tarball
-    orig_tarball = None
-    for file in os.listdir(tmp_dir):
-        if os.path.isfile(file) and re.search('\.orig\.', file):
-            orig_tarball = os.path.join(tmp_dir, file)
-            break
+    # Get the orig/debian file names from the dsc file.
+    with open(dsc_filename, 'r') as f:
+        while f.readline().strip() != 'Files:':
+            pass
 
-    assert orig_tarball
+        filenames = []
+        line = f.readline().strip()
+        while line != '':
+            # The lines have the form
+            #
+            # 74c21e7d24df6f98db139... 1681868 git-buildpackage_0.7.4.tar.xz
+            #
+            # and we're interested in the last part, the file name.
+            m = re.match(' *[^ ]+ *[^ ]+ *([^ ]+).*', line)
+            filenames.append(m.group(1))
+            line = f.readline().strip()
+
+    if len(filenames) == 1:
+        orig_tarball = os.path.join(tmp_dir, filenames[0])
+        debian_dir = None
+    elif len(filenames) == 2:
+        # Which one is the orig and which is the debian?
+        if re.search('\.orig\.', filenames[0]):
+            orig_tarball = os.path.join(tmp_dir, filenames[0])
+            debian = filenames[1]
+        elif re.search('\.orig\.', filenames[1]):
+            orig_tarball = os.path.join(tmp_dir, filenames[1])
+            debian = filenames[0]
+        else:
+            raise RuntimeError('expected .orig. in one of the filenames')
+
+        # Unpack the debian tarball
+        tar = tarfile.open(debian)
+        tar.extractall()
+        tar.close()
+
+        debian_dir = os.path.join(tmp_dir, os.path.join(tmp_dir, 'debian'))
+
+        assert os.path.is_dir(debian_dir)
+    else:
+        raise RuntimeError('Expected either 1 or 2 file names in DSC file.')
 
     return orig_tarball, debian_dir
