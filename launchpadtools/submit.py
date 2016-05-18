@@ -444,7 +444,7 @@ def _get_items_from_dsc(url):
 
         debian_dir = os.path.join(tmp_dir, os.path.join(tmp_dir, 'debian'))
 
-        assert os.path.is_dir(debian_dir)
+        assert os.path.isdir(debian_dir)
     else:
         raise RuntimeError('Expected either 1 or 2 file names in DSC file.')
 
