@@ -312,8 +312,9 @@ def _submit(
         else:
             chlog_version += '%s1' % ubuntu_release
 
+        slot_version = chlog_version
         if slot:
-            chlog_version = slot + ':' + chlog_version
+            slot_version = slot + ':' + chlog_version
 
         # Override changelog
         os.chdir(os.path.join(release_dir, prefix))
@@ -325,7 +326,7 @@ def _submit(
         subprocess.check_call([
                  'dch',
                  '-b',  # force
-                 '-v', chlog_version,
+                 '-v', slot_version,
                  '--distribution', ubuntu_release,
                  'launchpad-submit update'
                 ],
