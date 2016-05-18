@@ -309,7 +309,7 @@ def _submit(
         if debian_version:
             chlog_version += debian_version
         if ubuntu_version:
-            chlog_version += '%s%s' % (ubuntu_release, debian_version)
+            chlog_version += '%s%s' % (ubuntu_release, ubuntu_version)
         else:
             chlog_version += '%s1' % ubuntu_release
 
