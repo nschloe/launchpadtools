@@ -74,5 +74,5 @@ def clone(source, out):
         if not orig_dir:
             raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
-    helpers.copytree(os.path.join(orig_dir, '*'), out)
+    helpers.copytree(orig_dir, out)
     return

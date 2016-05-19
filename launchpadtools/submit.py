@@ -84,10 +84,13 @@ def submit(
         do_update_patches=False
         ):
     repo_dir = tempfile.mkdtemp()
+    shutil.rmtree(repo_dir)
+
     clone.clone(orig, repo_dir)
     if debian:
         # Create debian/ folder in a temporary directory
         debian_dir = tempfile.mkdtemp()
+        shutil.rmtree(debian_dir)
         clone.clone(debian, debian_dir)
     else:
         debian_dir = os.path.join(repo_dir, 'debian')
@@ -103,25 +106,44 @@ def submit(
 
     if version_override:
         upstream_version = version_override
+        debian_version = '1'
+        ubuntu_version = '1'
 
     # Create git repo.
-    # Remove git-related entities to ensure a smooth creation of the repo below
-    try:
-        for dot_git in _find_all_dirs('.git', repo_dir):
-            shutil.rmtree(dot_git)
-        for dot_gitignore in _find_all_files('.gitignore', repo_dir):
-            os.remove(dot_gitignore)
-    except FileNotFoundError:
-        pass
+    # Remove git-related entities to ensure a smooth creation of the repo
+    # below. Don't loop over all directory with os.walk since that seems to
+    # touch the files and change their meta data.
+    os.chdir(repo_dir)
+    if os.path.isdir('.git'):
+        shutil.rmtree('.git')
+    if os.path.isfile('.gitignore'):
+        os.remove('.gitignore')
+
+    # Create orig tarball.
+    prefix = name + '-' + upstream_version
+    tar_dir = os.path.join('/', 'tmp', prefix)
+    if os.path.isdir(tar_dir):
+        shutil.rmtree(tar_dir)
+    helpers.copytree(repo_dir, tar_dir)
+    orig_tarball = os.path.join('/tmp/', name + '.orig.tar.gz')
+    if os.path.isfile(orig_tarball):
+        os.remove(orig_tarball)
+    os.chdir('/tmp')
+    # We need to make sure that the same content ends up with a tar archive
+    # that has the same checksums. Unfortunately, by default, gzip contains
+    # time stamps. Stripping them helps
+    # <http://serverfault.com/a/110244/132462>.
+    subprocess.check_call(
+        ['tar', 'czf', orig_tarball, prefix],
+        env={'GZIP': '-n'}
+        # 'GZIP=-n tar czf %s %s' % (orig_tarball, prefix)
+        )
+    shutil.rmtree(tar_dir)
+
+    # Create repo
     repo = git.Repo.init(repo_dir)
     repo.index.add('*')
     repo.index.commit('import orig')
-
-    # Create the orig tarball.
-    orig_tarball = os.path.join('/tmp/', name + '.tar.gz')
-    prefix = name + '-' + upstream_version
-    with open(orig_tarball, 'wb') as fh:
-        repo.archive(fh, prefix=prefix + '/', format='tar.gz')
 
     if debian:
         # Add the debian/ folder
