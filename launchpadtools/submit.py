@@ -162,8 +162,12 @@ def submit(
                 if d['distro_series_link'] ==
                 'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
                 ]
-        parts = published_in_series[0]['source_package_version'].split('-')
-        already_published = len(parts) == 3 and parts[1] == tree_hash_short
+
+        already_published = False
+        if published_in_series:
+            parts = published_in_series[0]['source_package_version'].split('-')
+            already_published = len(parts) == 3 and parts[1] == tree_hash_short
+
         if force or not already_published:
             submit_releases.append(ubuntu_release)
         else:
