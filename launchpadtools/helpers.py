@@ -8,7 +8,7 @@ def copytree(source, dest):
     '''Workaround until Python 3.5, fixing
     <https://bugs.python.org/issue21697>, is available.
     '''
-    command = 'cp -r %s %s' % (source, dest)
+    command = 'cp -ar %s %s' % (source, dest)
     process = subprocess.Popen(
             command,
             shell=True,
