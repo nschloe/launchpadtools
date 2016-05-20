@@ -84,13 +84,10 @@ def submit(
         do_update_patches=False
         ):
     repo_dir = tempfile.mkdtemp()
-    shutil.rmtree(repo_dir)
-
     clone.clone(orig, repo_dir)
     if debian:
         # Create debian/ folder in a temporary directory
         debian_dir = tempfile.mkdtemp()
-        shutil.rmtree(debian_dir)
         clone.clone(debian, debian_dir)
     else:
         debian_dir = os.path.join(repo_dir, 'debian')
@@ -213,6 +210,11 @@ def submit(
         debuild_params='',
         force=False
         )
+
+    # clean up
+    shutil.rmtree(repo_dir)
+    if debian:
+        shutil.rmtree(debian_dir)
     return
 
 
