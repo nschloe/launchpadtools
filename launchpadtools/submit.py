@@ -147,7 +147,7 @@ def submit(
 
     if debian:
         # Add the debian/ folder
-        helpers.copytree(debian_dir, repo_dir)
+        helpers.copytree(debian_dir, os.path.join(repo_dir, 'debian'))
         repo.git.add('debian/')
         repo.index.commit('add ./debian')
 
@@ -199,7 +199,7 @@ def submit(
 
     _submit(
         orig_tarball,
-        debian,
+        debian_dir,
         name,
         upstream_version,
         debian_version,
@@ -317,7 +317,10 @@ def _submit(
         if debian_dir:
             # copy over debian directory
             if not os.path.isdir(os.path.join(release_dir, prefix, 'debian')):
-                assert os.path.isdir(debian_dir)
+                if not os.path.isdir(debian_dir):
+                    raise RuntimeError(
+                        'The path \'%s\' is no directory.' % debian_dir
+                        )
                 helpers.copytree(
                         debian_dir,
                         os.path.join(release_dir, prefix, 'debian')
