@@ -3,6 +3,7 @@
 import git
 import os
 import subprocess
+import shutil
 import tempfile
 
 from . import helpers
@@ -52,6 +53,16 @@ def _get_dir_from_svn(url):
 
 
 def clone(source, out):
+    print('Cloning %s to %s...' % (source, out))
+    if os.path.exists(out):
+        if not os.path.isdir(out):
+            raise RuntimeError('Destination is not a directory.')
+
+        if os.listdir(out) == []:
+            shutil.rmtree(out)
+        else:
+            raise RuntimeError('Destination directory is not empty.')
+
     if os.path.isdir(source):
         orig_dir = source
     else:
