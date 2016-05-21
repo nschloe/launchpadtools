@@ -133,7 +133,6 @@ def submit(
     subprocess.check_call(
         ['tar', 'czf', orig_tarball, prefix],
         env={'GZIP': '-n'}
-        # 'GZIP=-n tar czf %s %s' % (orig_tarball, prefix)
         )
     shutil.rmtree(tar_dir)
 
@@ -144,7 +143,11 @@ def submit(
 
     if debian:
         # Add the debian/ folder
-        helpers.copytree(debian_dir, os.path.join(repo_dir, 'debian'))
+        shutil.move(debian_dir, os.path.join(repo_dir, 'debian'))
+
+        # reset debian_dir to directory with updated patches
+        debian_dir = os.path.join(repo_dir, 'debian')
+
         repo.git.add('debian/')
         repo.index.commit('add ./debian')
 
@@ -213,8 +216,6 @@ def submit(
 
     # clean up
     shutil.rmtree(repo_dir)
-    if debian:
-        shutil.rmtree(debian_dir)
     return
 
 
@@ -395,13 +396,6 @@ def _update_patches(directory):
     when applying a Debian patch to the master branch. `patch` itself is more
     robust, so use that here to update the Debian patches.
     '''
-    try:
-        repo = git.Repo(directory)
-    except git.exc.InvalidGitRepositoryError:
-        raise RuntimeError('Directory %s is not Git-managed.' % directory)
-
-    repo.git.checkout('.')
-
     os.chdir(directory)
     subprocess.check_call(
         'while quilt push; do quilt refresh; done',
@@ -419,9 +413,6 @@ def _update_patches(directory):
             'QUILT_PATCHES': 'debian/patches'
             }
         )
-
-    repo.index.add('*')
-    repo.index.commit('update patches')
 
     return
 
