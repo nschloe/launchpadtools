@@ -4,7 +4,6 @@ import git
 import os
 import subprocess
 import shutil
-import tempfile
 
 from . import helpers
 
@@ -18,7 +17,9 @@ def _sanitize_directory_name(string):
 
 
 def _get_dir_from_git(git_url):
-    repo_dir = os.path.join('/tmp', _sanitize_directory_name(git_url))
+    repo_dir = os.path.join(
+        os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(git_url)
+        )
     if os.path.isdir(repo_dir):
         repo = git.Repo(repo_dir)
         origin = repo.remotes.origin
@@ -30,7 +31,9 @@ def _get_dir_from_git(git_url):
 
 
 def _get_dir_from_svn(url):
-    repo_dir = os.path.join('/tmp', _sanitize_directory_name(url))
+    repo_dir = os.path.join(
+        os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(url)
+        )
     if os.path.isdir(repo_dir):
         os.chdir(repo_dir)
         # Call `svn info` first since `svn up` returns exit code 0 even if the
