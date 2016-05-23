@@ -210,8 +210,8 @@ def submit(
         ppa_string,
         debfullname,
         debemail,
-        debuild_params='',
-        force=False
+        debuild_params,
+        force
         )
 
     # clean up
@@ -265,8 +265,8 @@ def submit_dsc(
         ppa_string,
         debfullname,
         debemail,
-        debuild_params='',
-        force=False
+        debuild_params,
+        force
         )
     return
 
@@ -368,13 +368,12 @@ def _submit(
 
         # Call debuild, the actual workhorse
         os.chdir(os.path.join(release_dir, prefix))
-        subprocess.check_call(
-                ['debuild',
-                 debuild_params,
-                 '-S',  # build source package only
-                 '--lintian-opts', '-EvIL', '+pedantic'
-                 ]
-                )
+        subprocess.check_call([
+            'debuild',
+            debuild_params,
+            '-S',  # build source package only
+            '--lintian-opts', '-EvIL', '+pedantic'
+            ])
 
         # Submit to launchpad.
         os.chdir(os.pardir)
