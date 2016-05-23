@@ -226,8 +226,7 @@ def submit_dsc(
         ppa_string,
         debfullname,
         debemail,
-        debuild_params='',
-        force=False
+        debuild_params=''
         ):
     orig_tarball, debian_dir = _get_items_from_dsc(dsc)
 
@@ -265,8 +264,7 @@ def submit_dsc(
         ppa_string,
         debfullname,
         debemail,
-        debuild_params,
-        force
+        debuild_params
         )
     return
 
@@ -284,8 +282,7 @@ def _submit(
         ppa_string,
         debfullname,
         debemail,
-        debuild_params='',
-        force=False
+        debuild_params=''
         ):
     for ubuntu_release in ubuntu_releases:
         # Create empty directory of the form
