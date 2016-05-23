@@ -12,7 +12,7 @@ virtualenv:
 
 install:
   - pip install -r requirements.txt
-  - pip install coveralls
+  - pip install codecov
   # Alternative: setup.py install.
   # Using pip makes sure that the package is pip-compatible, too.
   - pip install .
@@ -22,4 +22,4 @@ script:
   - nosetests --with-coverage --cover-package=launchpadtools
 
 after_success:
-  - coveralls
+  - codecov
