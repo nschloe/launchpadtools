@@ -240,9 +240,9 @@ def submit_dsc(
         # Find the debian subdirectory
         subdir = None
         for item in os.listdir(tmp_dir):
-                if os.path.isdir(item):
-                        subdir = os.path.join(tmp_dir, item)
-                        break
+            if os.path.isdir(item):
+                subdir = os.path.join(tmp_dir, item)
+                break
         debian_dir = os.path.join(tmp_dir, subdir, 'debian')
 
     name, version = _get_info_from_changelog(
