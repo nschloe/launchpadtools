@@ -41,8 +41,7 @@ setup(
         'Topic :: System :: Operating System'
         ],
     scripts=[
-        'tools/create-debian-repo',
-        'tools/launchpad-backport',
+        'tools/clone',
         'tools/launchpad-submit',
         ]
     )
