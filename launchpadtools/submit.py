@@ -133,10 +133,13 @@ def submit(
         repo.git.add('debian/')
         repo.index.commit('add ./debian')
 
-        if do_update_patches:
-            _update_patches(repo_dir)
-            repo.git.add(update=True)
-            repo.index.commit('updated patches')
+    # Get the tree hash before updating the patches; they contain time stamps.
+    tree_hash_short = repo.tree().hexsha[:8]
+
+    if do_update_patches:
+        _update_patches(repo_dir)
+        repo.git.add(update=True)
+        repo.index.commit('updated patches')
 
     lp = Launchpad.login_anonymously('foo', 'production', None)
     ppa_owner, ppa_name = tuple(ppa_string.split('/'))
@@ -149,7 +152,6 @@ def submit(
             d for d in sources.entries if d['status'] == 'Published'
             ]
 
-    tree_hash_short = repo.tree().hexsha[:8]
     # Use the `-` as a separator (instead of `~` as it's often used) to
     # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
     # it possible to increment `x` and have launchpad recognize it as a new
