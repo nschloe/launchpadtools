@@ -391,23 +391,46 @@ def _update_patches(directory):
     when applying a Debian patch to the master branch. `patch` itself is more
     robust, so use that here to update the Debian patches.
     '''
+    print('Updating patches...')
     os.chdir(directory)
-    subprocess.check_call(
-        'while quilt push; do quilt refresh; done',
-        shell=True,
-        env={
-            'QUILT_PATCHES': 'debian/patches'
-            }
+
+    # We need the number of patches so we don't call `quilt push` too often.
+    out = subprocess.check_output(
+        ['quilt', 'series'],
+        env={'QUILT_PATCHES': 'debian/patches'}
         )
+    all_patches = out.decode('utf-8').strip().split('\n')
+
+    for patch in all_patches:
+        try:
+            subprocess.check_call(
+                ['quilt', 'push'],
+                env={'QUILT_PATCHES': 'debian/patches'}
+                )
+            subprocess.check_call(
+                ['quilt', 'refresh'],
+                env={'QUILT_PATCHES': 'debian/patches'}
+                )
+        except subprocess.CalledProcessError:
+            # If applied and refreshing the patch didn't work, remove it.
+            print('Deleting patch %s...' % patch)
+            subprocess.check_call(
+                ['quilt', 'delete', '-nr'],
+                env={'QUILT_PATCHES': 'debian/patches'}
+                )
 
     # undo all patches; only the changes in the debian/patches/ remain.
     subprocess.check_call(
-        'quilt pop -a',
-        shell=True,
-        env={
-            'QUILT_PATCHES': 'debian/patches'
-            }
+        ['quilt', 'pop', '-a'],
+        env={'QUILT_PATCHES': 'debian/patches'}
         )
+
+    # Remove the ubuntu.series file since it's not handled by quilt.
+    ubuntu_series = os.path.join(
+            directory, 'debian', 'patches', 'ubuntu.series'
+            )
+    if os.path.isfile(ubuntu_series):
+        os.remove(ubuntu_series)
 
     return
 
