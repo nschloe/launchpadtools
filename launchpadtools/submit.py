@@ -51,24 +51,6 @@ def _parse_package_version(version):
     return epoch, upstream, debian, ubuntu
 
 
-def _find_all_dirs(name, path):
-    # From http://stackoverflow.com/a/1724723/353337
-    result = []
-    for root, dirs, _ in os.walk(path):
-        if name in dirs:
-            result.append(os.path.join(root, name))
-    return result
-
-
-def _find_all_files(name, path):
-    # From http://stackoverflow.com/a/1724723/353337
-    result = []
-    for root, _, files in os.walk(path):
-        if name in files:
-            result.append(os.path.join(root, name))
-    return result
-
-
 def submit(
         orig,
         debian,
