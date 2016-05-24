@@ -5,17 +5,20 @@ dist: trusty
 language: python
 
 python:
-    - "3.4"
+    - "2.7"
+    # lazr.restfulclient isn't availble from pypi for python 3 yet, cf.
+    # <https://bugs.launchpad.net/lazr.restfulclient/+bug/1552595>.
+    # - "3.4"
 
 virtualenv:
   system_site_packages: true
 
 install:
-  - pip3 install -r requirements.txt
-  - pip3 install codecov
+  - pip install -r requirements.txt
+  - pip install codecov
   # Alternative: setup.py install.
   # Using pip makes sure that the package is pip-compatible, too.
-  - pip3 install .
+  - pip install .
 
 # run tests
 script:
