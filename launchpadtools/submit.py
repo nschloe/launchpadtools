@@ -210,8 +210,7 @@ def submit(
         ppa_string,
         debfullname,
         debemail,
-        debuild_params,
-        force
+        debuild_params
         )
 
     # clean up
