@@ -399,7 +399,7 @@ def _update_patches(directory):
         ['quilt', 'series'],
         env={'QUILT_PATCHES': 'debian/patches'}
         )
-    all_patches = out.decode('utf-8').strip().split('\n')
+    all_patches = out.decode('utf-8').split('\n')[:-1]
 
     for patch in all_patches:
         try:
@@ -420,10 +420,16 @@ def _update_patches(directory):
                 )
 
     # undo all patches; only the changes in the debian/patches/ remain.
-    subprocess.check_call(
-        ['quilt', 'pop', '-a'],
+    out = subprocess.check_output(
+        ['quilt', 'series'],
         env={'QUILT_PATCHES': 'debian/patches'}
         )
+    all_patches = out.decode('utf-8').split('\n')[:-1]
+    if len(all_patches) > 0:
+        subprocess.check_call(
+            ['quilt', 'pop', '-a'],
+            env={'QUILT_PATCHES': 'debian/patches'}
+            )
 
     # Remove the ubuntu.series file since it's not handled by quilt.
     ubuntu_series = os.path.join(
