@@ -199,6 +199,7 @@ def submit(
 
     # clean up
     shutil.rmtree(repo_dir)
+    os.remove(orig_tarball)
     return
 
 
@@ -366,6 +367,9 @@ def _submit(
                 'ppa:%s' % ppa_string,
                 '%s_%s_source.changes' % (name, chlog_version)
                 ])
+
+        # clean up
+        shutil.rmtree(release_dir)
 
     return
 
