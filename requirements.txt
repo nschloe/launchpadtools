@@ -1,2 +1,3 @@
 GitPython
 launchpadlib
+python-hglib

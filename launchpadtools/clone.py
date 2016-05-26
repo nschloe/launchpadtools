@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 import git
+import hglib
 import os
 import subprocess
 import shutil
@@ -26,6 +27,19 @@ def _get_dir_from_git(git_url):
         origin.pull()
     else:
         git.Repo.clone_from(git_url, repo_dir)
+
+    return repo_dir
+
+
+def _get_dir_from_mercurial(url):
+    repo_dir = os.path.join(
+        os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(url)
+        )
+    if os.path.isdir(repo_dir):
+        client = hglib.open(repo_dir)
+        client.pull()
+    else:
+        hglib.clone(url, repo_dir)
 
     return repo_dir
 
@@ -77,6 +91,12 @@ def clone(source, out):
             except git.exc.GitCommandError:
                 pass
             except git.exc.InvalidGitRepositoryError:
+                pass
+
+        if not orig_dir:
+            try:
+                orig_dir = _get_dir_from_mercurial(source)
+            except hglib.error.ServerError:
                 pass
 
         if not orig_dir:
