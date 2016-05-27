@@ -64,16 +64,6 @@ def _parse_cmd_arguments():
         default=False
         )
     parser.add_argument(
-        '-n', '--debfullname',
-        help='the submitter\'s full name',
-        type=str
-        )
-    parser.add_argument(
-        '-e', '--debemail',
-        help='the submitter\'s email address',
-        type=str
-        )
-    parser.add_argument(
         '-b', '--debuild-params',
         help='extra parameters passed to debuild',
         type=str,
@@ -94,8 +84,6 @@ if __name__ == '__main__':
             args.ubuntu_releases,
             args.dry,
             args.ppa,
-            args.debfullname,
-            args.debemail,
             args.debuild_params,
             args.version_override,
             args.version_append_hash,
@@ -108,8 +96,6 @@ if __name__ == '__main__':
             args.ubuntu_releases,
             args.dry,
             args.ppa,
-            args.debfullname,
-            args.debemail,
             args.debuild_params,
             args.force
             )
