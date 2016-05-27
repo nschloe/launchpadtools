@@ -57,8 +57,6 @@ def submit(
         ubuntu_releases,
         dry,
         ppa_string,
-        debfullname,
-        debemail,
         debuild_params='',
         version_override=None,
         version_append_hash=False,
@@ -192,8 +190,6 @@ def submit(
         epoch,
         dry,
         ppa_string,
-        debfullname,
-        debemail,
         debuild_params
         )
 
@@ -208,8 +204,6 @@ def submit_dsc(
         ubuntu_releases,
         dry,
         ppa_string,
-        debfullname,
-        debemail,
         debuild_params=''
         ):
     orig_tarball, debian_dir = _get_items_from_dsc(dsc)
@@ -246,8 +240,6 @@ def submit_dsc(
         epoch,
         dry,
         ppa_string,
-        debfullname,
-        debemail,
         debuild_params
         )
     return
@@ -264,8 +256,6 @@ def _submit(
         slot,
         dry,
         ppa_string,
-        debfullname,
-        debemail,
         debuild_params=''
         ):
     for ubuntu_release in ubuntu_releases:
@@ -332,20 +322,13 @@ def _submit(
 
         # Override changelog
         os.chdir(os.path.join(release_dir, prefix))
-        env = {}
-        if debfullname:
-            env['DEBFULLNAME'] = debfullname
-        if debemail:
-            env['DEBEMAIL'] = debemail
         subprocess.check_call([
                  'dch',
                  '-b',  # force
                  '-v', slot_version,
                  '--distribution', ubuntu_release,
                  'launchpad-submit update'
-                ],
-                env=env
-                )
+                ])
 
         # Call debuild, the actual workhorse
         os.chdir(os.path.join(release_dir, prefix))
