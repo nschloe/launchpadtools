@@ -98,6 +98,8 @@ def clone(source, out):
                 orig_dir = _get_dir_from_mercurial(source)
             except hglib.error.ServerError:
                 pass
+            except hglib.error.CommandError:
+                pass
 
         if not orig_dir:
             try:
