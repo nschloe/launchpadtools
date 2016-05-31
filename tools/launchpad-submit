@@ -96,8 +96,7 @@ if __name__ == '__main__':
             args.ubuntu_releases,
             args.dry,
             args.ppa,
-            args.debuild_params,
-            args.force
+            args.debuild_params
             )
     else:
         raise RuntimeError('Supply one of --orig, --dsc.')
