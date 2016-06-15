@@ -65,6 +65,29 @@ rm -rf "$ORIG_DIR"
 rm -rf "$DEBIAN_DIR"
 ```
 
+### Installation
+
+#### Python Package Index
+
+The launchpad tools are [available from the Python Package
+Index](https://pypi.python.org/pypi/launchpadtools/), so for
+installation/upgrading simply do
+```
+pip install --upgrade launchpadtools
+```
+
+#### Manual installation
+
+Download the launchpad tools from
+[the Python Package Index](https://pypi.python.org/pypi/launchpadtools/).
+Place the launchpad tools in a directory where Python can find it (e.g.,
+`$PYTHONPATH`).  You can install it system-wide with
+```
+python setup.py install
+```
+or place the script `matplotlib2tikz.py` into the directory where you intend to
+use it.
+
 ### Distribution
 To create a new release
 
