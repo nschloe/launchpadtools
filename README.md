@@ -32,7 +32,7 @@ launchpad-submit \
   --ppa nschloe/metis-backports
 ```
 
-##### Submitting from source
+#### Submitting from source
 
 Sometimes, you may want to submit a source package with a Debian configuration
 that is available somewhere else. This may help setting up a nightly submission
