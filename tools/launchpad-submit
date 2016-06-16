@@ -35,7 +35,7 @@ def _parse_cmd_arguments():
         required=True
         )
     parser.add_argument(
-        '-v', '--version-override',
+        '-o', '--version-override',
         help='Override package version',
         type=str
         )
@@ -68,6 +68,11 @@ def _parse_cmd_arguments():
         help='extra parameters passed to debuild',
         type=str,
         default=''
+        )
+    parser.add_argument(
+        '-v', '--version',
+        action='version',
+        version='launchpadtools %s' % launchpadtools.__version__
         )
     return parser.parse_args()
 
