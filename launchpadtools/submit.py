@@ -291,17 +291,14 @@ def _submit(
                 break
         assert os.path.isdir(prefix)
 
+        dd = os.path.join(release_dir, prefix, 'debian')
         if debian_dir:
             # copy over debian directory
-            if not os.path.isdir(os.path.join(release_dir, prefix, 'debian')):
-                if not os.path.isdir(debian_dir):
-                    raise RuntimeError(
-                        'The path \'%s\' is no directory.' % debian_dir
-                        )
-                helpers.copytree(
-                        debian_dir,
-                        os.path.join(release_dir, prefix, 'debian')
-                        )
+            assert os.path.isdir(debian_dir)
+            shutil.rmtree(dd)
+            helpers.copytree(debian_dir, dd)
+
+        assert os.path.isdir(dd)
 
         # We cannot use "-ubuntu1" as a suffix here since we'd like to submit
         # for multiple ubuntu releases. If the version strings were exactly the
