@@ -1,22 +1,26 @@
+VERSION=$(shell python -c "import launchpadtools; print(launchpadtools.__version__)")
+
+# Make sure we're on the master branch
+ifneq "$(shell git rev-parse --abbrev-ref HEAD)" "master"
+$(error Not on master branch)
+endif
 
 default:
-	@echo "\"make release\"?"
+	@echo "\"make publish\"?"
 
 README.rst: README.md
 	pandoc README.md -o README.rst
-	python3 setup.py check -r -s || exit 1
+	python setup.py check -r -s || exit 1
 
 upload: setup.py README.rst
-	python3 setup.py sdist upload --sign
+	python setup.py sdist upload --sign
 
-V=`python -c "import launchpadtools; print(launchpadtools.__version__)"`
 tag:
-	git tag -a `@echo -n v$V` -m "tagging v$V" && git push --tags
+	@echo "Tagging v$(VERSION)..."
+	git tag v$(VERSION)
+	git push --tags
 
-release: upload tag
+publish: tag upload
 
 clean:
-	rm -rf \
-	 README.rst \
-	 launchpadtools.egg-info/ \
-	 dist
+	rm -f README.rst
