@@ -123,10 +123,13 @@ def submit(
 
     if debian:
         # Add the debian/ folder
-        shutil.move(debian_dir, os.path.join(repo_dir, 'debian'))
+        new_debian_dir = os.path.join(repo_dir, 'debian')
+
+        shutil.rmtree(new_debian_dir)
+        shutil.move(debian_dir, new_debian_dir)
 
         # reset debian_dir to directory with updated patches
-        debian_dir = os.path.join(repo_dir, 'debian')
+        debian_dir = new_debian_dir
 
         repo.git.add('debian/')
         repo.index.commit('add ./debian')
