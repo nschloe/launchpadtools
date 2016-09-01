@@ -124,8 +124,8 @@ def submit(
     if debian:
         # Add the debian/ folder
         new_debian_dir = os.path.join(repo_dir, 'debian')
-
-        shutil.rmtree(new_debian_dir)
+        if os.path.exists(new_debian_dir):
+            shutil.rmtree(new_debian_dir)
         shutil.move(debian_dir, new_debian_dir)
 
         # reset debian_dir to directory with updated patches
@@ -295,7 +295,8 @@ def _submit(
         if debian_dir:
             # copy over debian directory
             assert os.path.isdir(debian_dir)
-            shutil.rmtree(dd)
+            if os.path.exists(dd):
+                shutil.rmtree(dd)
             helpers.copytree(debian_dir, dd)
 
         assert os.path.isdir(dd)
