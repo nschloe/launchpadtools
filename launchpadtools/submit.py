@@ -147,11 +147,6 @@ def submit(
 
     owner = lp.people[ppa_owner]
     ppa = owner.getPPAByName(name=ppa_name)
-    sources = ppa.getPublishedSources()
-
-    published_sources = [
-            d for d in sources.entries if d['status'] == 'Published'
-            ]
 
     # Use the `-` as a separator (instead of `~` as it's often used) to
     # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
@@ -164,15 +159,16 @@ def submit(
     submit_releases = []
     for ubuntu_release in ubuntu_releases:
         # Check if this version has already been published.
-        published_in_series = [
-                d for d in published_sources
-                if d['distro_series_link'] ==
-                'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
-                ]
+        published_in_series = ppa.getPublishedSources(
+            source_name=name,
+            status='Published',
+            distro_series=
+              'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
+            )
 
         already_published = False
-        if published_in_series:
-            parts = published_in_series[0]['source_package_version'].split('-')
+        if len(published_in_series.entries) > 0:
+            parts = published_in_series.entries[0]['source_package_version'].split('-')
             already_published = len(parts) == 3 and parts[1] == tree_hash_short
 
         if force or not already_published:
