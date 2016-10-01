@@ -168,8 +168,13 @@ def submit(
 
         already_published = False
         if len(published_in_series.entries) > 0:
+            # The source_package_versions have the form
+            #
+            #   4.3.1-developer~20161001024503-3ea99bea-1trusty1
+            #
+            # Split those at `-` and take the second-to-last, namely the hash.
             parts = published_in_series.entries[0]['source_package_version'].split('-')
-            already_published = len(parts) == 3 and parts[1] == tree_hash_short
+            already_published = len(parts) >= 3 and parts[-2] == tree_hash_short
 
         if force or not already_published:
             submit_releases.append(ubuntu_release)
