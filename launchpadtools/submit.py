@@ -322,11 +322,26 @@ def _submit(
         if slot:
             slot_version = slot + ':' + chlog_version
 
-        # Override changelog
+        # From `man dpkg-genchanges`:
+        # By default, or if specified, the original source will be included
+        # only if the upstream version number (the version without epoch and
+        # without Debian revision) differs from the upstream version number of
+        # the previous changelog entry.
+        #
+        # This means that, if this version and the last coincide, the source
+        # will not be uploaded, leading to launchpad errors of the kind
+        # ```
+        # Unable to find matplotlib_2.0.0~beta4.orig.tar.gz in upload or
+        # distribution.
+        # ```
+        # Hence, remove old changelog and create it anew.
         os.chdir(os.path.join(release_dir, prefix))
+        os.remove('debian/changelog')
         subprocess.check_call([
                  'dch',
-                 '-b',  # force
+                 '--create',
+                 '--package', name,
+                 # '-b',  # force
                  '-v', slot_version,
                  '--distribution', ubuntu_release,
                  'launchpad-submit update'
