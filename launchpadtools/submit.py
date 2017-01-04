@@ -184,7 +184,7 @@ def submit(
             print('Same version already published for %s.' % ubuntu_release)
 
     _submit(
-        orig_tarball,
+        [orig_tarball],
         debian_dir,
         name,
         upstream_version,
@@ -210,14 +210,15 @@ def submit_dsc(
         ppa_string,
         debuild_params=''
         ):
-    orig_tarball, debian_dir = _get_items_from_dsc(dsc)
+    orig_tarballs, debian_dir = _get_items_from_dsc(dsc)
 
     if not debian_dir:
         tmp_dir = tempfile.mkdtemp()
         os.chdir(tmp_dir)
-        tar = tarfile.open(orig_tarball)
-        tar.extractall()
-        tar.close()
+        for orig_tarball in orig_tarballs:
+            tar = tarfile.open(orig_tarball)
+            tar.extractall()
+            tar.close()
 
         # Find the debian subdirectory
         subdir = None
@@ -226,6 +227,7 @@ def submit_dsc(
                 subdir = os.path.join(tmp_dir, item)
                 break
         debian_dir = os.path.join(tmp_dir, subdir, 'debian')
+        assert os.path.isdir(debian_dir)
 
     name, version = _get_info_from_changelog(
             os.path.join(debian_dir, 'changelog')
@@ -234,7 +236,7 @@ def submit_dsc(
         _parse_package_version(version)
 
     _submit(
-        orig_tarball,
+        orig_tarballs,
         debian_dir,
         name,
         upstream_version,
@@ -250,7 +252,7 @@ def submit_dsc(
 
 
 def _submit(
-        orig_tarball,
+        orig_tarballs,
         debian_dir,
         name,
         upstream_version,
@@ -270,6 +272,11 @@ def _submit(
             shutil.rmtree(release_dir)
         # Use Python3's makedirs for recursive creation
         os.makedirs(release_dir, exist_ok=True)
+
+        # quick workaround
+        # TODO fix
+        assert len(orig_tarballs) == 1
+        orig_tarball = orig_tarballs[0]
 
         # Copy source tarball to
         #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
@@ -459,29 +466,23 @@ def _get_items_from_dsc(url):
                 # bail on the first line that doesn't match
                 break
 
-    if len(filenames) == 1:
-        orig_tarball = os.path.join(tmp_dir, filenames[0])
-        debian_dir = None
-    elif len(filenames) == 2:
-        # Which one is the orig and which is the debian?
-        if re.search('\.orig\.', filenames[0]):
-            orig_tarball = os.path.join(tmp_dir, filenames[0])
-            debian = filenames[1]
-        elif re.search('\.orig\.', filenames[1]):
-            orig_tarball = os.path.join(tmp_dir, filenames[1])
-            debian = filenames[0]
-        else:
-            raise RuntimeError('expected .orig. in one of the filenames')
+    # check if there's a `tar`ed debian directory
+    debian_dir = None
+    debian_tar = None
+    for filename in filenames:
+        if re.search('\.debian\.', filename):
+            debian_tar = filename
+            # Unpack the debian tarball
+            tar = tarfile.open(filename)
+            tar.extractall()
+            tar.close()
+            #
+            debian_dir = os.path.join(tmp_dir, os.path.join(tmp_dir, 'debian'))
+            assert os.path.isdir(debian_dir)
+            break
 
-        # Unpack the debian tarball
-        tar = tarfile.open(debian)
-        tar.extractall()
-        tar.close()
+    if debian_tar:
+        filenames.remove(filename)
+    orig_tarballs = [os.path.join(tmp_dir, filename) for filename in filenames]
 
-        debian_dir = os.path.join(tmp_dir, os.path.join(tmp_dir, 'debian'))
-
-        assert os.path.isdir(debian_dir)
-    else:
-        raise RuntimeError('Expected either 1 or 2 file names in DSC file.')
-
-    return orig_tarball, debian_dir
+    return orig_tarballs, debian_dir
