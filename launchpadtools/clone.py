@@ -26,7 +26,7 @@ def _get_dir_from_git(git_url):
         origin = repo.remotes.origin
         origin.pull()
     else:
-        git.Repo.clone_from(git_url, repo_dir)
+        git.Repo.clone_from(git_url, repo_dir, recursive=True)
 
     return repo_dir
 
