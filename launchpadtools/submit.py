@@ -3,6 +3,7 @@
 import git
 from launchpadlib.launchpad import Launchpad
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -17,10 +18,10 @@ def _get_info_from_changelog(changelog):
     with open(changelog, 'r') as f:
         first_line = f.readline()
         search = re.search(
-                '^( *[^ ]+) *\(([^\)]+)\).*',
-                first_line,
-                re.IGNORECASE
-                )
+            '^( *[^ ]+) *\(([^\)]+)\).*',
+            first_line,
+            re.IGNORECASE
+            )
         if search:
             return search.group(1), search.group(2)
         else:
@@ -74,8 +75,8 @@ def submit(
         assert os.path.isdir(debian_dir)
 
     name, version = _get_info_from_changelog(
-            os.path.join(debian_dir, 'changelog')
-            )
+        os.path.join(debian_dir, 'changelog')
+        )
 
     # Dissect version in upstream, debian/ubuntu parts.
     epoch, upstream_version, debian_version, ubuntu_version = \
@@ -162,8 +163,9 @@ def submit(
         published_in_series = ppa.getPublishedSources(
             source_name=name,
             status='Published',
-            distro_series=
-              'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
+            distro_series=(
+                'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
+            )
             )
 
         already_published = False
@@ -173,8 +175,11 @@ def submit(
             #   4.3.1-developer~20161001024503-3ea99bea-1trusty1
             #
             # Split those at `-` and take the second-to-last, namely the hash.
-            parts = published_in_series.entries[0]['source_package_version'].split('-')
-            already_published = len(parts) >= 3 and parts[-2] == tree_hash_short
+            parts = published_in_series \
+                .entries[0]['source_package_version'] \
+                .split('-')
+            already_published = \
+                len(parts) >= 3 and parts[-2] == tree_hash_short
 
         if force or not already_published:
             submit_releases.append(ubuntu_release)
@@ -230,8 +235,8 @@ def submit_dsc(
         assert os.path.isdir(debian_dir)
 
     name, version = _get_info_from_changelog(
-            os.path.join(debian_dir, 'changelog')
-            )
+        os.path.join(debian_dir, 'changelog')
+        )
     epoch, upstream_version, debian_version, ubuntu_version = \
         _parse_package_version(version)
 
@@ -345,14 +350,14 @@ def _submit(
         os.chdir(os.path.join(release_dir, prefix))
         os.remove('debian/changelog')
         subprocess.check_call([
-                 'dch',
-                 '--create',
-                 '--package', name,
-                 # '-b',  # force
-                 '-v', slot_version,
-                 '--distribution', ubuntu_release,
-                 'launchpad-submit update'
-                ])
+            'dch',
+            '--create',
+            '--package', name,
+            # '-b',  # force
+            '-v', slot_version,
+            '--distribution', ubuntu_release,
+            'launchpad-submit update'
+            ])
 
         # Call debuild, the actual workhorse
         os.chdir(os.path.join(release_dir, prefix))
@@ -369,11 +374,35 @@ def _submit(
             print()
             print('Uploading to PPA %s...' % ppa_string)
             print()
-            subprocess.check_call([
-                'dput',
-                'ppa:%s' % ppa_string,
-                '%s_%s_source.changes' % (name, chlog_version)
-                ])
+            assert platform.linux_distribution()[0] in ['debian', 'Ubuntu']
+            if platform.linux_distribution()[0] == 'ubuntu':
+                # Ubuntu's dput handles uploads to launchpad PPAs
+                # automatically.
+                subprocess.check_call([
+                    'dput',
+                    'ppa:%s' % ppa_string,
+                    '%s_%s_source.changes' % (name, chlog_version)
+                    ])
+            else:  # debian':
+                # Debian's dput must be told about the launchpad PPA via a
+                # config file. Make it temporary.
+                handle, filename = tempfile.mkstemp()
+                with open(filename, 'w') as f:
+                    f.write('''[%s-nightly]
+fqdn = ppa.launchpad.net
+method = ftp
+incoming = ~%s/ubuntu/
+login = anonymous
+allow_unsigned_uploads = 0''' % (name, ppa_string))
+
+                subprocess.check_call([
+                    'dput',
+                    '-c', filename,
+                    '%s-nightly' % name,
+                    '%s_%s_source.changes' % (name, chlog_version)
+                    ])
+
+                os.remove(filename)
 
         # clean up
         shutil.rmtree(release_dir)
@@ -428,8 +457,8 @@ def _update_patches(directory):
 
     # Remove the ubuntu.series file since it's not handled by quilt.
     ubuntu_series = os.path.join(
-            directory, 'debian', 'patches', 'ubuntu.series'
-            )
+        directory, 'debian', 'patches', 'ubuntu.series'
+        )
     if os.path.isfile(ubuntu_series):
         os.remove(ubuntu_series)
 
@@ -440,9 +469,9 @@ def _get_items_from_dsc(url):
     tmp_dir = tempfile.mkdtemp()
     os.chdir(tmp_dir)
     subprocess.check_call(
-            'dget %s' % url,
-            shell=True
-            )
+        'dget %s' % url,
+        shell=True
+        )
 
     dsc_filename = os.path.basename(url)
 
