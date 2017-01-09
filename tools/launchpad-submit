@@ -10,13 +10,31 @@ import launchpadtools
 def _parse_cmd_arguments():
     parser = argparse.ArgumentParser(description='Submit builds to launchpad.')
     parser.add_argument(
-        '-r', '--orig',
-        help='Orig source'
+        '-r', '--orig-dir',
+        help='Orig dir'
         )
     parser.add_argument(
-        '-d', '--debian',
-        help='debian/ source',
+        '--preserve-orig-dir',
+        help=(
+            'By default, the orig dir gets destroyed. '
+            'Switch on to preserve it.'
+            ),
+        action='store_true',
+        default=False
+        )
+    parser.add_argument(
+        '-d', '--debian-dir',
+        help='debian/ direcory',
         default=None
+        )
+    parser.add_argument(
+        '--preserve-debian-dir',
+        help=(
+            'By default, the Debian dir gets destroyed. '
+            'Switch on to preserve it.'
+            ),
+        action='store_true',
+        default=False
         )
     parser.add_argument(
         '-s', '--dsc',
@@ -79,13 +97,13 @@ def _parse_cmd_arguments():
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    if args.orig and args.dsc:
-        raise RuntimeError('Supply either one of --orig, --dsc, not both.')
+    if args.orig_dir and args.dsc:
+        raise RuntimeError('Supply either one of --orig-dir, --dsc, not both.')
 
-    if args.orig:
+    if args.orig_dir:
         launchpadtools.submit.submit(
-            args.orig,
-            args.debian,
+            args.orig_dir,
+            args.debian_dir,
             args.ubuntu_releases,
             args.dry,
             args.ppa,
@@ -93,7 +111,9 @@ if __name__ == '__main__':
             args.version_override,
             args.version_append_hash,
             args.force,
-            args.update_patches
+            args.update_patches,
+            args.preserve_orig_dir,
+            args.preserve_debian_dir
             )
     elif args.dsc:
         launchpadtools.submit.submit_dsc(

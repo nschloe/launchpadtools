@@ -53,8 +53,8 @@ def _parse_package_version(version):
 
 
 def submit(
-        orig,
-        debian,
+        orig_dir,
+        debian_dir_,
         ubuntu_releases,
         dry,
         ppa_string,
@@ -62,17 +62,27 @@ def submit(
         version_override=None,
         version_append_hash=False,
         force=False,
-        do_update_patches=False
+        do_update_patches=False,
+        preserve_orig_dir=False,
+        preserve_debian_dir=False
         ):
-    repo_dir = tempfile.mkdtemp()
-    clone.clone(orig, repo_dir)
-    if debian:
-        # Create debian/ folder in a temporary directory
-        debian_dir = tempfile.mkdtemp()
-        clone.clone(debian, debian_dir)
+    if preserve_orig_dir:
+        repo_dir = tempfile.mkdtemp()
+        clone.clone(orig_dir, repo_dir)
+    else:
+        repo_dir = orig_dir
+
+    if debian_dir_:
+        if preserve_debian_dir:
+            # Create debian/ folder in a temporary directory
+            debian_dir = tempfile.mkdtemp()
+            clone.clone(debian_dir_, debian_dir)
+        else:
+            debian_dir = debian_dir_
     else:
         debian_dir = os.path.join(repo_dir, 'debian')
-        assert os.path.isdir(debian_dir)
+
+    assert os.path.isdir(debian_dir)
 
     name, version = _get_info_from_changelog(
         os.path.join(debian_dir, 'changelog')
@@ -126,7 +136,7 @@ def submit(
     repo.index.add('*')
     repo.index.commit('import orig')
 
-    if debian:
+    if debian_dir_:
         # Add the debian/ folder
         new_debian_dir = os.path.join(repo_dir, 'debian')
         if os.path.exists(new_debian_dir):
