@@ -99,23 +99,27 @@ def submit(
 
     # Create orig tarball.
     prefix = name + '-' + upstream_version
-    tar_dir = os.path.join('/', 'tmp', prefix)
-    if os.path.isdir(tar_dir):
-        shutil.rmtree(tar_dir)
-    helpers.copytree(repo_dir, tar_dir)
     orig_tarball = os.path.join('/tmp/', name + '.orig.tar.gz')
     if os.path.isfile(orig_tarball):
         os.remove(orig_tarball)
-    os.chdir('/tmp')
     # We need to make sure that the same content ends up with a tar archive
     # that has the same checksums. Unfortunately, by default, gzip contains
     # time stamps. Stripping them helps
     # <http://serverfault.com/a/110244/132462>.
+    # Also, replace the leading `repo_dir` by `prefix`.
+    repo_dir_without_leading_slash = \
+        repo_dir[1:] if repo_dir[0] == '/' else repo_dir
+    transform = 's/^%s/%s/' \
+        % (repo_dir_without_leading_slash.replace('/', '\/'), prefix)
     subprocess.check_call(
-        ['tar', 'czf', orig_tarball, prefix],
+        [
+            'tar',
+            '--transform', transform,
+            '-czf', orig_tarball,
+            repo_dir
+        ],
         env={'GZIP': '-n'}
         )
-    shutil.rmtree(tar_dir)
 
     # Create repo
     repo = git.Repo.init(repo_dir)
