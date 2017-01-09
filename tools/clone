@@ -7,20 +7,26 @@ import launchpadtools
 
 def _parse_cmd_arguments():
     parser = argparse.ArgumentParser(
-            description='Clone any repository or directory.'
-            )
+        description='Clone any repository or directory.'
+        )
     parser.add_argument(
-            'source',
-            metavar='SOURCE',
-            type=str,
-            help='source repository/directory'
-            )
+        'source',
+        metavar='SOURCE',
+        type=str,
+        help='source repository/directory'
+        )
     parser.add_argument(
-            'destination',
-            metavar='DEST',
-            type=str,
-            help='destination directory'
-            )
+        'destination',
+        metavar='DEST',
+        type=str,
+        help='destination directory'
+        )
+    parser.add_argument(
+        '--ignore-hidden',
+        help='Ignore hidden files directories. (Default: false)',
+        action='store_true',
+        default=False
+        )
     parser.add_argument(
         '-v', '--version',
         action='version',
@@ -31,4 +37,8 @@ def _parse_cmd_arguments():
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    launchpadtools.clone.clone(args.source, args.destination)
+    launchpadtools.clone.clone(
+        args.source,
+        args.destination,
+        args.ignore_hidden
+        )
