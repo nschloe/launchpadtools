@@ -74,7 +74,7 @@ def _get_dir_from_svn(url):
     return repo_dir
 
 
-def clone(source, out, ignore_hidden=True):
+def clone(source, out, subdirectory=None, ignore_hidden=True):
     print('Cloning %s to %s...' % (source, out), end='')
     if os.path.exists(out):
         if not os.path.isdir(out):
@@ -115,5 +115,12 @@ def clone(source, out, ignore_hidden=True):
         if not orig_dir:
             raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
-    helpers.copytree(orig_dir, out, ignore_hidden=ignore_hidden)
+    if subdirectory is None:
+        helpers.copytree(orig_dir, out, ignore_hidden=ignore_hidden)
+    else:
+        helpers.copytree(
+            os.path.join(orig_dir,subdirectory),
+            out,
+            ignore_hidden=ignore_hidden
+            )
     return

@@ -28,6 +28,11 @@ def _parse_cmd_arguments():
         default=False
         )
     parser.add_argument(
+        '--subdirectory',
+        type=str,
+        help='Clone only given subdirectory of SOURCE'
+        )
+    parser.add_argument(
         '-v', '--version',
         action='version',
         version='launchpadtools %s' % launchpadtools.__version__
@@ -40,5 +45,6 @@ if __name__ == '__main__':
     launchpadtools.clone.clone(
         args.source,
         args.destination,
-        args.ignore_hidden
+        subdirectory=args.subdirectory,
+        ignore_hidden=args.ignore_hidden
         )
