@@ -202,19 +202,20 @@ def submit(
             # 2.1.0~20160504184836-01b3a567-trusty1
             print('Same version already published for %s.' % ubuntu_release)
 
-    _submit(
-        [orig_tarball],
-        debian_dir,
-        name,
-        upstream_version,
-        debian_version,
-        ubuntu_version,
-        submit_releases,
-        epoch,
-        dry,
-        ppa_string,
-        debuild_params
-        )
+    for ubuntu_release in submit_releases:
+        _submit(
+            [orig_tarball],
+            debian_dir,
+            name,
+            upstream_version,
+            debian_version,
+            ubuntu_version,
+            ubuntu_release,
+            epoch,
+            dry,
+            ppa_string,
+            debuild_params
+            )
 
     # clean up
     shutil.rmtree(repo_dir)
@@ -254,19 +255,20 @@ def submit_dsc(
     epoch, upstream_version, debian_version, ubuntu_version = \
         _parse_package_version(version)
 
-    _submit(
-        orig_tarballs,
-        debian_dir,
-        name,
-        upstream_version,
-        debian_version,
-        ubuntu_version,
-        ubuntu_releases,
-        epoch,
-        dry,
-        ppa_string,
-        debuild_params
-        )
+    for ubuntu_release in ubuntu_releases:
+        _submit(
+            orig_tarballs,
+            debian_dir,
+            name,
+            upstream_version,
+            debian_version,
+            ubuntu_version,
+            ubuntu_release,
+            epoch,
+            dry,
+            ppa_string,
+            debuild_params
+            )
     return
 
 
@@ -277,149 +279,148 @@ def _submit(
         upstream_version,
         debian_version,
         ubuntu_version,
-        ubuntu_releases,
+        ubuntu_release,
         slot,
         dry,
         ppa_string,
         debuild_params=''
         ):
-    for ubuntu_release in ubuntu_releases:
-        # Create empty directory of the form
-        #     /tmp/trilinos/trusty/
-        release_dir = os.path.join('/tmp', name, ubuntu_release)
-        if os.path.exists(release_dir):
-            shutil.rmtree(release_dir)
-        # Use Python3's makedirs for recursive creation
-        os.makedirs(release_dir, exist_ok=True)
+    # Create empty directory of the form
+    #     /tmp/trilinos/trusty/
+    release_dir = os.path.join('/tmp', name, ubuntu_release)
+    if os.path.exists(release_dir):
+        shutil.rmtree(release_dir)
+    # Use Python3's makedirs for recursive creation
+    os.makedirs(release_dir, exist_ok=True)
 
-        # quick workaround
-        # TODO fix
-        assert len(orig_tarballs) == 1
-        orig_tarball = orig_tarballs[0]
+    # quick workaround
+    # TODO fix
+    assert len(orig_tarballs) == 1
+    orig_tarball = orig_tarballs[0]
 
-        # Copy source tarball to
-        #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
-        # Preserve file type.
-        _, ext = os.path.splitext(orig_tarball)
-        tarball_dest = '%s_%s.orig.tar%s' % (name, upstream_version, ext)
+    # Copy source tarball to
+    #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
+    # Preserve file type.
+    _, ext = os.path.splitext(orig_tarball)
+    tarball_dest = '%s_%s.orig.tar%s' % (name, upstream_version, ext)
 
-        shutil.copy2(orig_tarball, os.path.join(release_dir, tarball_dest))
-        # Unpack the tarball
-        os.chdir(release_dir)
-        tar = tarfile.open(tarball_dest)
-        tar.extractall()
-        tar.close()
+    shutil.copy2(orig_tarball, os.path.join(release_dir, tarball_dest))
+    # Unpack the tarball
+    os.chdir(release_dir)
+    tar = tarfile.open(tarball_dest)
+    tar.extractall()
+    tar.close()
 
-        # Find the subdirectory
-        prefix = None
-        for item in os.listdir(release_dir):
-            if os.path.isdir(item):
-                prefix = os.path.join(release_dir, item)
-                break
-        assert os.path.isdir(prefix)
+    # Find the subdirectory
+    prefix = None
+    for item in os.listdir(release_dir):
+        if os.path.isdir(item):
+            prefix = os.path.join(release_dir, item)
+            break
+    assert os.path.isdir(prefix)
 
-        dd = os.path.join(release_dir, prefix, 'debian')
-        if debian_dir:
-            # copy over debian directory
-            assert os.path.isdir(debian_dir)
-            if os.path.exists(dd):
-                shutil.rmtree(dd)
-            helpers.copytree(debian_dir, dd)
+    dd = os.path.join(release_dir, prefix, 'debian')
+    if debian_dir:
+        # copy over debian directory
+        assert os.path.isdir(debian_dir)
+        if os.path.exists(dd):
+            shutil.rmtree(dd)
+        helpers.copytree(debian_dir, dd)
 
-        assert os.path.isdir(dd)
+    assert os.path.isdir(dd)
 
-        # We cannot use "-ubuntu1" as a suffix here since we'd like to submit
-        # for multiple ubuntu releases. If the version strings were exactly the
-        # same, the following error is produced on upload:
-        #
-        #   File gmsh_2.12.1~20160512220459-ef262f68-ubuntu1.debian.tar.gz
-        #   already exists in Gmsh nightly, but uploaded version has different
-        #   contents.
-        #
-        chlog_version = upstream_version + '-'
-        if debian_version:
-            chlog_version += debian_version
-        if ubuntu_version:
-            chlog_version += '%s%s' % (ubuntu_release, ubuntu_version)
-        else:
-            chlog_version += '%s1' % ubuntu_release
+    # We cannot use "-ubuntu1" as a suffix here since we'd like to submit for
+    # multiple ubuntu releases. If the version strings were exactly the same,
+    # the following error is produced on upload:
+    #
+    #   File gmsh_2.12.1~20160512220459-ef262f68-ubuntu1.debian.tar.gz
+    #   already exists in Gmsh nightly, but uploaded version has different
+    #   contents.
+    #
+    chlog_version = upstream_version + '-'
+    if debian_version:
+        chlog_version += debian_version
+    if ubuntu_version:
+        chlog_version += '%s%s' % (ubuntu_release, ubuntu_version)
+    else:
+        chlog_version += '%s1' % ubuntu_release
 
-        slot_version = chlog_version
-        if slot:
-            slot_version = slot + ':' + chlog_version
+    slot_version = chlog_version
+    if slot:
+        slot_version = slot + ':' + chlog_version
 
-        # From `man dpkg-genchanges`:
-        # By default, or if specified, the original source will be included
-        # only if the upstream version number (the version without epoch and
-        # without Debian revision) differs from the upstream version number of
-        # the previous changelog entry.
-        #
-        # This means that, if this version and the last coincide, the source
-        # will not be uploaded, leading to launchpad errors of the kind
-        # ```
-        # Unable to find matplotlib_2.0.0~beta4.orig.tar.gz in upload or
-        # distribution.
-        # ```
-        # Hence, remove old changelog and create it anew.
-        os.chdir(os.path.join(release_dir, prefix))
-        os.remove('debian/changelog')
-        subprocess.check_call([
-            'dch',
-            '--create',
-            '--package', name,
-            # '-b',  # force
-            '-v', slot_version,
-            '--distribution', ubuntu_release,
-            'launchpad-submit update'
-            ])
+    # From `man dpkg-genchanges`:
+    # By default, or if specified, the original source will be included only if
+    # the upstream version number (the version without epoch and without Debian
+    # revision) differs from the upstream version number of the previous
+    # changelog entry.
+    #
+    # This means that, if this version and the last coincide, the source will
+    # not be uploaded, leading to launchpad errors of the kind
+    # ```
+    # Unable to find matplotlib_2.0.0~beta4.orig.tar.gz in upload or
+    # distribution.
+    # ```
+    # Hence, remove old changelog and create it anew.
+    os.chdir(os.path.join(release_dir, prefix))
+    os.remove('debian/changelog')
+    subprocess.check_call([
+        'dch',
+        '--create',
+        '--package', name,
+        # '-b',  # force
+        '-v', slot_version,
+        '--distribution', ubuntu_release,
+        'launchpad-submit update'
+        ])
 
-        # Call debuild, the actual workhorse
-        os.chdir(os.path.join(release_dir, prefix))
-        subprocess.check_call([
-            'debuild',
-            debuild_params,
-            '-S',  # build source package only
-            '--lintian-opts', '-EvIL', '+pedantic'
-            ])
+    # Call debuild, the actual workhorse
+    os.chdir(os.path.join(release_dir, prefix))
+    subprocess.check_call([
+        'debuild',
+        debuild_params,
+        '-S',  # build source package only
+        '--lintian-opts', '-EvIL', '+pedantic'
+        ])
 
-        # Submit to launchpad.
-        os.chdir(os.pardir)
-        if not dry:
-            print()
-            print('Uploading to PPA %s...' % ppa_string)
-            print()
-            assert platform.linux_distribution()[0] in ['debian', 'Ubuntu']
-            if platform.linux_distribution()[0] == 'ubuntu':
-                # Ubuntu's dput handles uploads to launchpad PPAs
-                # automatically.
-                subprocess.check_call([
-                    'dput',
-                    'ppa:%s' % ppa_string,
-                    '%s_%s_source.changes' % (name, chlog_version)
-                    ])
-            else:  # debian':
-                # Debian's dput must be told about the launchpad PPA via a
-                # config file. Make it temporary.
-                handle, filename = tempfile.mkstemp()
-                with open(filename, 'w') as f:
-                    f.write('''[%s-nightly]
+    # Submit to launchpad.
+    os.chdir(os.pardir)
+    if not dry:
+        print()
+        print('Uploading to PPA %s...' % ppa_string)
+        print()
+        assert platform.linux_distribution()[0] in ['debian', 'Ubuntu']
+        if platform.linux_distribution()[0] == 'ubuntu':
+            # Ubuntu's dput handles uploads to launchpad PPAs
+            # automatically.
+            subprocess.check_call([
+                'dput',
+                'ppa:%s' % ppa_string,
+                '%s_%s_source.changes' % (name, chlog_version)
+                ])
+        else:  # debian':
+            # Debian's dput must be told about the launchpad PPA via a config
+            # file. Make it temporary.
+            handle, filename = tempfile.mkstemp()
+            with open(filename, 'w') as f:
+                f.write('''[%s-nightly]
 fqdn = ppa.launchpad.net
 method = ftp
 incoming = ~%s/ubuntu/
 login = anonymous
 allow_unsigned_uploads = 0''' % (name, ppa_string))
 
-                subprocess.check_call([
-                    'dput',
-                    '-c', filename,
-                    '%s-nightly' % name,
-                    '%s_%s_source.changes' % (name, chlog_version)
-                    ])
+            subprocess.check_call([
+                'dput',
+                '-c', filename,
+                '%s-nightly' % name,
+                '%s_%s_source.changes' % (name, chlog_version)
+                ])
 
-                os.remove(filename)
+            os.remove(filename)
 
-        # clean up
-        shutil.rmtree(release_dir)
+    # clean up
+    shutil.rmtree(release_dir)
 
     return
 
