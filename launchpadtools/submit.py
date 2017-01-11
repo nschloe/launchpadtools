@@ -10,9 +10,6 @@ import subprocess
 import tarfile
 import tempfile
 
-from . import clone
-from . import helpers
-
 
 def _get_info_from_changelog(changelog):
     with open(changelog, 'r') as f:
@@ -65,12 +62,15 @@ def _get_tree_hash(directory):
     tree_hash = repo.tree().hexsha
 
     # clean up
-    shutil.rmtree('.git')
+    shutil.rmtree(os.path.join(directory, '.git'))
 
     return tree_hash
 
 
-def _create_tarball(directory, tarball, prefix):
+def _create_tarball(directory, tarball, prefix, excludes=None):
+    if excludes is None:
+        excludes = []
+
     if os.path.isfile(tarball):
         os.remove(tarball)
     # We need to make sure that the same content ends up with a tar archive
@@ -82,15 +82,17 @@ def _create_tarball(directory, tarball, prefix):
         directory[1:] if directory[0] == '/' else directory
     transform = 's/^%s/%s/' \
         % (repo_dir_without_leading_slash.replace('/', '\/'), prefix)
-    subprocess.check_call(
-        [
-            'tar',
-            '--transform', transform,
-            '-czf', tarball,
-            directory
-        ],
-        env={'GZIP': '-n'}
-        )
+    cmd = [
+        'tar',
+        '--transform', transform,
+        '-czf', tarball,
+        directory
+        ]
+    for ex in excludes:
+        cmd.append('--exclude=%s' % ex)
+
+    subprocess.check_call(cmd, env={'GZIP': '-n'})
+
     return
 
 
@@ -123,85 +125,76 @@ def _release_has_same_hash(name, tree_hash_short, ppa, ubuntu_release):
 
 
 def submit(
-        orig_dir,
-        debian_dir_,
+        work_dir,
         ubuntu_releases,
         ppa_string,
         debuild_params='',
         version_override=None,
         version_append_hash=False,
         force=False,
-        do_update_patches=False,
-        preserve_orig_dir=False,
-        preserve_debian_dir=False
+        do_update_patches=False
         ):
-    if preserve_orig_dir:
-        repo_dir = tempfile.mkdtemp()
-        clone.clone(orig_dir, repo_dir)
-    else:
-        repo_dir = orig_dir
+    orig_dir = os.path.join(work_dir, 'orig')
+    assert os.path.isdir(orig_dir)
 
-    if debian_dir_:
-        if preserve_debian_dir:
-            # Create debian/ folder in a temporary directory
-            debian_dir = tempfile.mkdtemp()
-            clone.clone(debian_dir_, debian_dir)
-        else:
-            debian_dir = debian_dir_
-    else:
-        debian_dir = os.path.join(repo_dir, 'debian')
-
+    debian_dir = os.path.join(orig_dir, 'debian')
     assert os.path.isdir(debian_dir)
+
+    # Remove git-related entities to ensure a smooth creation of the repo
+    # below.
+    for dirpath, dnames, fnames in os.walk(orig_dir):
+        for f in fnames:
+            if f in ['.gitignore']:
+                os.remove(f)
+        for d in dnames:
+            if d in ['.git']:
+                shutil.rmtree(d)
 
     name, version = _get_info_from_changelog(
         os.path.join(debian_dir, 'changelog')
         )
 
+    print('\nComputing tree hash...')
+    tree_hash_short = _get_tree_hash(orig_dir)[:8]
+    print('done (%s).' % tree_hash_short)
+
+    # check which ubuntu series we need to submit to
+    if force:
+        submit_releases = ubuntu_releases
+    else:
+        # Check if this version has already been published.
+        print('\nCheck for tree hash on PPA...')
+        lp = Launchpad.login_anonymously('foo', 'production', None)
+        ppa_owner, ppa_name = tuple(ppa_string.split('/'))
+        owner = lp.people[ppa_owner]
+        ppa = owner.getPPAByName(name=ppa_name)
+
+        submit_releases = [
+            release
+            for release in ubuntu_releases
+            if not _release_has_same_hash(name, tree_hash_short, ppa, release)
+            ]
+        print('done.')
+
+    if len(submit_releases) == 0:
+        print('\nEverything up-to-date. No submissions necessary.\n')
+        return
+    else:
+        print()
+        print('\nSubmitting to %s.\n' % ', '.join(submit_releases))
+        print()
+
     # Dissect version in upstream, debian/ubuntu parts.
     epoch, upstream_version, debian_version, ubuntu_version = \
         _parse_package_version(version)
+
+    if do_update_patches:
+        _update_patches(orig_dir)
 
     if version_override:
         upstream_version = version_override
         debian_version = '1'
         ubuntu_version = '1'
-
-    # Create git repo.
-    # Remove git-related entities to ensure a smooth creation of the repo
-    # below. Don't loop over all directory with os.walk since that seems to
-    # touch the files and change their meta data.
-    os.chdir(repo_dir)
-    if os.path.isdir('.git'):
-        shutil.rmtree('.git')
-    if os.path.isfile('.gitignore'):
-        os.remove('.gitignore')
-
-    # Create orig tarball.
-    orig_tarball = os.path.join('/tmp/', name + '.orig.tar.gz')
-    prefix = name + '-' + upstream_version
-    _create_tarball(repo_dir, orig_tarball, prefix)
-
-    if debian_dir_:
-        # Add the debian/ folder
-        new_debian_dir = os.path.join(repo_dir, 'debian')
-        if os.path.exists(new_debian_dir):
-            shutil.rmtree(new_debian_dir)
-        shutil.move(debian_dir, new_debian_dir)
-
-        # reset debian_dir
-        debian_dir = new_debian_dir
-
-    # Get the tree hash before updating the patches; they contain time stamps.
-    tree_hash_short = _get_tree_hash(repo_dir)[:8]
-
-    if do_update_patches:
-        _update_patches(repo_dir)
-
-    lp = Launchpad.login_anonymously('foo', 'production', None)
-    ppa_owner, ppa_name = tuple(ppa_string.split('/'))
-
-    owner = lp.people[ppa_owner]
-    ppa = owner.getPPAByName(name=ppa_name)
 
     # Use the `-` as a separator (instead of `~` as it's often used) to
     # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
@@ -210,20 +203,21 @@ def submit(
     if version_append_hash:
         upstream_version += '-%s' % tree_hash_short
 
-    # check which ubuntu series we need to submit to
-    if force:
-        submit_releases = ubuntu_releases
-    else:
-        # Check if this version has already been published.
-        submit_releases = [
-            release
-            for release in ubuntu_releases
-            if not _release_has_same_hash(name, tree_hash_short, ppa, release)
-            ]
+    # Create orig tarball (without the Debian folder).
+    orig_tarball = os.path.join(
+        work_dir,
+        '%s_%s.orig.tar.gz' % (name, upstream_version)
+        )
+    prefix = name + '-' + upstream_version
+    print('Creating tarball...')
+    _create_tarball(orig_dir, orig_tarball, prefix, excludes='./debian')
+    print('done.')
 
     for ubuntu_release in submit_releases:
         _submit(
+            work_dir,
             [orig_tarball],
+            orig_dir,
             debian_dir,
             name,
             upstream_version,
@@ -235,9 +229,6 @@ def submit(
             debuild_params
             )
 
-    # clean up
-    shutil.rmtree(repo_dir)
-    os.remove(orig_tarball)
     return
 
 
@@ -289,7 +280,9 @@ def submit_dsc(
 
 
 def _submit(
+        work_dir,
         orig_tarballs,
+        orig_dir,
         debian_dir,
         name,
         upstream_version,
@@ -300,49 +293,32 @@ def _submit(
         ppa_string,
         debuild_params=''
         ):
-    # Create empty directory of the form
-    #     /tmp/trilinos/trusty/
-    release_dir = os.path.join('/tmp', name, ubuntu_release)
-    if os.path.exists(release_dir):
-        shutil.rmtree(release_dir)
-    # Use Python3's makedirs for recursive creation
-    os.makedirs(release_dir, exist_ok=True)
-
     # quick workaround
     # TODO fix
     assert len(orig_tarballs) == 1
     orig_tarball = orig_tarballs[0]
 
-    # Copy source tarball to
-    #     /tmp/trilinos/trusty/trilinos_4.3.1.2~20121123-01b3a567.tar.gz
-    # Preserve file type.
+    # Assert tarball at
+    #     /work_dir/trilinos_4.3.1.2~20121123-01b3a567.tar.gz.
+    #
+    print(work_dir)
     _, ext = os.path.splitext(orig_tarball)
     tarball_dest = '%s_%s.orig.tar%s' % (name, upstream_version, ext)
+    print(tarball_dest)
+    assert os.path.isfile(os.path.join(work_dir, tarball_dest))
 
-    shutil.copy2(orig_tarball, os.path.join(release_dir, tarball_dest))
-    # Unpack the tarball
-    os.chdir(release_dir)
-    tar = tarfile.open(tarball_dest)
-    tar.extractall()
-    tar.close()
+    # Get last component of `orig_dir`, cf.
+    # <http://stackoverflow.com/a/3925147/353337>.
+    prefix = os.path.basename(os.path.normpath(orig_dir))
+    assert os.path.isdir(orig_dir)
 
-    os.remove(tarball_dest)
-
-    # Find the extracted subdirectory
-    prefix = None
-    for item in os.listdir(release_dir):
-        if os.path.isdir(item):
-            prefix = os.path.join(release_dir, item)
-            break
-    assert os.path.isdir(prefix)
-
-    dd = os.path.join(release_dir, prefix, 'debian')
-    if debian_dir:
-        # copy over debian directory
-        assert os.path.isdir(debian_dir)
-        if os.path.exists(dd):
-            shutil.rmtree(dd)
-        helpers.copytree(debian_dir, dd)
+    dd = os.path.join(work_dir, prefix, 'debian')
+    # if debian_dir:
+    #     # copy over debian directory
+    #     assert os.path.isdir(debian_dir)
+    #     if os.path.exists(dd):
+    #         shutil.rmtree(dd)
+    #     helpers.copytree(debian_dir, dd)
 
     assert os.path.isdir(dd)
 
@@ -379,7 +355,7 @@ def _submit(
     # distribution.
     # ```
     # Hence, remove old changelog and create it anew.
-    os.chdir(os.path.join(release_dir, prefix))
+    os.chdir(os.path.join(work_dir, prefix))
     os.remove('debian/changelog')
     subprocess.check_call([
         'dch',
@@ -392,7 +368,7 @@ def _submit(
         ])
 
     # Call debuild, the actual workhorse
-    os.chdir(os.path.join(release_dir, prefix))
+    os.chdir(os.path.join(work_dir, prefix))
     subprocess.check_call([
         'debuild',
         debuild_params,
@@ -434,9 +410,6 @@ allow_unsigned_uploads = 0''' % (name, ppa_string))
             ])
 
         os.remove(filename)
-
-    # clean up
-    shutil.rmtree(release_dir)
 
     return
 
