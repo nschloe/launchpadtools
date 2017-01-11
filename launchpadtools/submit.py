@@ -52,6 +52,76 @@ def _parse_package_version(version):
     return epoch, upstream, debian, ubuntu
 
 
+def _get_tree_hash(directory):
+    '''Returns Git tree hash of a directory.
+    '''
+    assert not os.path.isdir(os.path.join(directory, '.git'))
+
+    # Create repo
+    repo = git.Repo.init(directory)
+    repo.index.add('*')
+    repo.index.commit('import orig')
+
+    tree_hash = repo.tree().hexsha
+
+    # clean up
+    shutil.rmtree('.git')
+
+    return tree_hash
+
+
+def _create_tarball(directory, tarball, prefix):
+    if os.path.isfile(tarball):
+        os.remove(tarball)
+    # We need to make sure that the same content ends up with a tar archive
+    # that has the same checksums. Unfortunately, by default, gzip contains
+    # time stamps. Stripping them helps
+    # <http://serverfault.com/a/110244/132462>.
+    # Also, replace the leading `repo_dir` by `prefix`.
+    repo_dir_without_leading_slash = \
+        directory[1:] if directory[0] == '/' else directory
+    transform = 's/^%s/%s/' \
+        % (repo_dir_without_leading_slash.replace('/', '\/'), prefix)
+    subprocess.check_call(
+        [
+            'tar',
+            '--transform', transform,
+            '-czf', tarball,
+            directory
+        ],
+        env={'GZIP': '-n'}
+        )
+    return
+
+
+def _release_has_same_hash(name, tree_hash_short, ppa, ubuntu_release):
+    # Check if this version has already been published.
+    published_in_series = ppa.getPublishedSources(
+        source_name=name,
+        status='Published',
+        distro_series=(
+            'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
+        )
+        )
+
+    has_same_hash = False
+    # Expect a package version of the form
+    # 2.1.0~20160504184836-01b3a567-trusty1
+    if len(published_in_series.entries) > 0:
+        # The source_package_versions have the form
+        #
+        #   4.3.1-developer~20161001024503-3ea99bea-1trusty1
+        #
+        # Split those at `-` and take the second-to-last, namely the hash.
+        parts = published_in_series \
+            .entries[0]['source_package_version'] \
+            .split('-')
+        has_same_hash = \
+            len(parts) >= 3 and parts[-2] == tree_hash_short
+
+    return has_same_hash
+
+
 def submit(
         orig_dir,
         debian_dir_,
@@ -107,33 +177,9 @@ def submit(
         os.remove('.gitignore')
 
     # Create orig tarball.
-    prefix = name + '-' + upstream_version
     orig_tarball = os.path.join('/tmp/', name + '.orig.tar.gz')
-    if os.path.isfile(orig_tarball):
-        os.remove(orig_tarball)
-    # We need to make sure that the same content ends up with a tar archive
-    # that has the same checksums. Unfortunately, by default, gzip contains
-    # time stamps. Stripping them helps
-    # <http://serverfault.com/a/110244/132462>.
-    # Also, replace the leading `repo_dir` by `prefix`.
-    repo_dir_without_leading_slash = \
-        repo_dir[1:] if repo_dir[0] == '/' else repo_dir
-    transform = 's/^%s/%s/' \
-        % (repo_dir_without_leading_slash.replace('/', '\/'), prefix)
-    subprocess.check_call(
-        [
-            'tar',
-            '--transform', transform,
-            '-czf', orig_tarball,
-            repo_dir
-        ],
-        env={'GZIP': '-n'}
-        )
-
-    # Create repo
-    repo = git.Repo.init(repo_dir)
-    repo.index.add('*')
-    repo.index.commit('import orig')
+    prefix = name + '-' + upstream_version
+    _create_tarball(repo_dir, orig_tarball, prefix)
 
     if debian_dir_:
         # Add the debian/ folder
@@ -142,19 +188,14 @@ def submit(
             shutil.rmtree(new_debian_dir)
         shutil.move(debian_dir, new_debian_dir)
 
-        # reset debian_dir to directory with updated patches
+        # reset debian_dir
         debian_dir = new_debian_dir
 
-        repo.git.add('debian/')
-        repo.index.commit('add ./debian')
-
     # Get the tree hash before updating the patches; they contain time stamps.
-    tree_hash_short = repo.tree().hexsha[:8]
+    tree_hash_short = _get_tree_hash(repo_dir)[:8]
 
     if do_update_patches:
         _update_patches(repo_dir)
-        repo.git.add(update=True)
-        repo.index.commit('updated patches')
 
     lp = Launchpad.login_anonymously('foo', 'production', None)
     ppa_owner, ppa_name = tuple(ppa_string.split('/'))
@@ -170,36 +211,15 @@ def submit(
         upstream_version += '-%s' % tree_hash_short
 
     # check which ubuntu series we need to submit to
-    submit_releases = []
-    for ubuntu_release in ubuntu_releases:
+    if force:
+        submit_releases = ubuntu_releases
+    else:
         # Check if this version has already been published.
-        published_in_series = ppa.getPublishedSources(
-            source_name=name,
-            status='Published',
-            distro_series=(
-                'https://api.launchpad.net/1.0/ubuntu/%s' % ubuntu_release
-            )
-            )
-
-        already_published = False
-        if len(published_in_series.entries) > 0:
-            # The source_package_versions have the form
-            #
-            #   4.3.1-developer~20161001024503-3ea99bea-1trusty1
-            #
-            # Split those at `-` and take the second-to-last, namely the hash.
-            parts = published_in_series \
-                .entries[0]['source_package_version'] \
-                .split('-')
-            already_published = \
-                len(parts) >= 3 and parts[-2] == tree_hash_short
-
-        if force or not already_published:
-            submit_releases.append(ubuntu_release)
-        else:
-            # Expect a package version of the form
-            # 2.1.0~20160504184836-01b3a567-trusty1
-            print('Same version already published for %s.' % ubuntu_release)
+        submit_releases = [
+            release
+            for release in ubuntu_releases
+            if not _release_has_same_hash(name, tree_hash_short, ppa, release)
+            ]
 
     for ubuntu_release in submit_releases:
         _submit(
@@ -306,7 +326,9 @@ def _submit(
     tar.extractall()
     tar.close()
 
-    # Find the subdirectory
+    os.remove(tarball_dest)
+
+    # Find the extracted subdirectory
     prefix = None
     for item in os.listdir(release_dir):
         if os.path.isdir(item):
