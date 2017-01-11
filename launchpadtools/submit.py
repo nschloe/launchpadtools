@@ -56,7 +56,6 @@ def submit(
         orig_dir,
         debian_dir_,
         ubuntu_releases,
-        dry,
         ppa_string,
         debuild_params='',
         version_override=None,
@@ -212,7 +211,6 @@ def submit(
             ubuntu_version,
             ubuntu_release,
             epoch,
-            dry,
             ppa_string,
             debuild_params
             )
@@ -226,7 +224,6 @@ def submit(
 def submit_dsc(
         dsc,
         ubuntu_releases,
-        dry,
         ppa_string,
         debuild_params=''
         ):
@@ -265,7 +262,6 @@ def submit_dsc(
             ubuntu_version,
             ubuntu_release,
             epoch,
-            dry,
             ppa_string,
             debuild_params
             )
@@ -281,7 +277,6 @@ def _submit(
         ubuntu_version,
         ubuntu_release,
         slot,
-        dry,
         ppa_string,
         debuild_params=''
         ):
@@ -385,39 +380,38 @@ def _submit(
 
     # Submit to launchpad.
     os.chdir(os.pardir)
-    if not dry:
-        print()
-        print('Uploading to PPA %s...' % ppa_string)
-        print()
-        assert platform.linux_distribution()[0] in ['debian', 'Ubuntu']
-        if platform.linux_distribution()[0] == 'ubuntu':
-            # Ubuntu's dput handles uploads to launchpad PPAs
-            # automatically.
-            subprocess.check_call([
-                'dput',
-                'ppa:%s' % ppa_string,
-                '%s_%s_source.changes' % (name, chlog_version)
-                ])
-        else:  # debian':
-            # Debian's dput must be told about the launchpad PPA via a config
-            # file. Make it temporary.
-            handle, filename = tempfile.mkstemp()
-            with open(filename, 'w') as f:
-                f.write('''[%s-nightly]
+    print()
+    print('Uploading to PPA %s...' % ppa_string)
+    print()
+    assert platform.linux_distribution()[0] in ['debian', 'Ubuntu']
+    if platform.linux_distribution()[0] == 'ubuntu':
+        # Ubuntu's dput handles uploads to launchpad PPAs
+        # automatically.
+        subprocess.check_call([
+            'dput',
+            'ppa:%s' % ppa_string,
+            '%s_%s_source.changes' % (name, chlog_version)
+            ])
+    else:  # 'debian':
+        # Debian's dput must be told about the launchpad PPA via a config
+        # file. Make it temporary.
+        handle, filename = tempfile.mkstemp()
+        with open(filename, 'w') as f:
+            f.write('''[%s-nightly]
 fqdn = ppa.launchpad.net
 method = ftp
 incoming = ~%s/ubuntu/
 login = anonymous
 allow_unsigned_uploads = 0''' % (name, ppa_string))
 
-            subprocess.check_call([
-                'dput',
-                '-c', filename,
-                '%s-nightly' % name,
-                '%s_%s_source.changes' % (name, chlog_version)
-                ])
+        subprocess.check_call([
+            'dput',
+            '-c', filename,
+            '%s-nightly' % name,
+            '%s_%s_source.changes' % (name, chlog_version)
+            ])
 
-            os.remove(filename)
+        os.remove(filename)
 
     # clean up
     shutil.rmtree(release_dir)
