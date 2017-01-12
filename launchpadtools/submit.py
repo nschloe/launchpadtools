@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
 
 
 def _get_info_from_changelog(changelog):
@@ -65,6 +66,20 @@ def _get_tree_hash(directory):
     shutil.rmtree(os.path.join(directory, '.git'))
 
     return tree_hash
+
+
+def _get_filesize(path):
+    size_in_bytes = os.path.getsize(path)
+    return _sizeof_fmt(size_in_bytes)
+
+
+def _sizeof_fmt(num, suffix='B'):
+    # <http://stackoverflow.com/a/1094933/353337>
+    for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+        if abs(num) < 1024.0:
+            return '%3.1f%s%s' % (num, unit, suffix)
+        num /= 1024.0
+    return '%.1f%s%s' % (num, 'Yi', suffix)
 
 
 def _create_tarball(directory, tarball, prefix, excludes=None):
@@ -155,8 +170,10 @@ def submit(
         )
 
     print('\nComputing tree hash...')
+    tic = time.time()
     tree_hash_short = _get_tree_hash(orig_dir)[:8]
-    print('done (%s).' % tree_hash_short)
+    elapsed_time = time.time() - tic
+    print('done (%s, took %.1fs).' % (tree_hash_short, elapsed_time))
 
     # check which ubuntu series we need to submit to
     if force:
@@ -181,7 +198,7 @@ def submit(
         return
     else:
         print()
-        print('\nSubmitting to %s.\n' % ', '.join(submit_releases))
+        print('\nSubmitting to %s.' % ', '.join(submit_releases))
         print()
 
     # Dissect version in upstream, debian/ubuntu parts.
@@ -210,8 +227,12 @@ def submit(
         )
     prefix = name + '-' + upstream_version
     print('Creating tarball...')
+    tic = time.time()
     _create_tarball(orig_dir, orig_tarball, prefix, excludes='./debian')
-    print('done.')
+    elapsed_time = time.time() - tic
+    print('done (%s, took %.1fs).\n' %
+          (_get_filesize(orig_tarball, elapsed_time))
+          )
 
     for ubuntu_release in submit_releases:
         _submit(
@@ -301,10 +322,8 @@ def _submit(
     # Assert tarball at
     #     /work_dir/trilinos_4.3.1.2~20121123-01b3a567.tar.gz.
     #
-    print(work_dir)
     _, ext = os.path.splitext(orig_tarball)
     tarball_dest = '%s_%s.orig.tar%s' % (name, upstream_version, ext)
-    print(tarball_dest)
     assert os.path.isfile(os.path.join(work_dir, tarball_dest))
 
     # Get last component of `orig_dir`, cf.
