@@ -57,9 +57,9 @@ def _get_tree_hash(directory):
 
     # Create repo
     repo = git.Repo.init(directory)
+    # The add step can take really long.
     repo.index.add('*')
     repo.index.commit('import orig')
-
     tree_hash = repo.tree().hexsha
 
     # clean up
@@ -85,6 +85,8 @@ def _sizeof_fmt(num, suffix='B'):
 def _create_tarball(directory, tarball, prefix, excludes=None):
     if excludes is None:
         excludes = []
+
+    assert not isinstance(excludes, basestring)
 
     if os.path.isfile(tarball):
         os.remove(tarball)
@@ -228,10 +230,10 @@ def submit(
     prefix = name + '-' + upstream_version
     print('Creating tarball...')
     tic = time.time()
-    _create_tarball(orig_dir, orig_tarball, prefix, excludes='./debian')
+    _create_tarball(orig_dir, orig_tarball, prefix, excludes=['./debian'])
     elapsed_time = time.time() - tic
     print('done (%s, took %.1fs).\n' %
-          (_get_filesize(orig_tarball, elapsed_time))
+          (_get_filesize(orig_tarball), elapsed_time)
           )
 
     for ubuntu_release in submit_releases:
