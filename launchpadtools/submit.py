@@ -162,10 +162,10 @@ def submit(
     for dirpath, dnames, fnames in os.walk(orig_dir):
         for f in fnames:
             if f in ['.gitignore']:
-                os.remove(f)
+                os.remove(os.path.join(dirpath, f))
         for d in dnames:
             if d in ['.git']:
-                shutil.rmtree(d)
+                shutil.rmtree(os.path.join(dirpath, d))
 
     name, version = _get_info_from_changelog(
         os.path.join(debian_dir, 'changelog')
