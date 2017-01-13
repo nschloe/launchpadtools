@@ -86,7 +86,7 @@ def _create_tarball(directory, tarball, prefix, excludes=None):
     if excludes is None:
         excludes = []
 
-    assert not isinstance(excludes, basestring)
+    assert not isinstance(excludes, str)
 
     if os.path.isfile(tarball):
         os.remove(tarball)
