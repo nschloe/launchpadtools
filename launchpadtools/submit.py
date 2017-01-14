@@ -241,7 +241,6 @@ def submit(
             work_dir,
             [orig_tarball],
             orig_dir,
-            debian_dir,
             name,
             upstream_version,
             debian_version,
@@ -306,7 +305,6 @@ def _submit(
         work_dir,
         orig_tarballs,
         orig_dir,
-        debian_dir,
         name,
         upstream_version,
         debian_version,
@@ -334,13 +332,6 @@ def _submit(
     assert os.path.isdir(orig_dir)
 
     dd = os.path.join(work_dir, prefix, 'debian')
-    # if debian_dir:
-    #     # copy over debian directory
-    #     assert os.path.isdir(debian_dir)
-    #     if os.path.exists(dd):
-    #         shutil.rmtree(dd)
-    #     helpers.copytree(debian_dir, dd)
-
     assert os.path.isdir(dd)
 
     # We cannot use "-ubuntu1" as a suffix here since we'd like to submit for
