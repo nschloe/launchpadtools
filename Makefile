@@ -9,7 +9,7 @@ default:
 	@echo "\"make publish\"?"
 
 README.rst: README.md
-	pandoc README.md -o README.rst
+	pandoc README.md -o README.rst || exit 1
 	python setup.py check -r -s || exit 1
 
 upload: setup.py README.rst
