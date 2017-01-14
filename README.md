@@ -38,7 +38,7 @@ that is available somewhere else. This may help setting up a nightly submission
 process. As an example, take the nightly submission script for a
 [Mixxx PPA](https://launchpad.net/~nschloe/+archive/ubuntu/mixxx-nightly).
 
-```bash
+```
 #!/bin/sh -ue
 
 TMP_DIR=$(mktemp -d)
