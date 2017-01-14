@@ -41,27 +41,31 @@ process. As an example, take the nightly submission script for a
 ```bash
 #!/bin/sh -ue
 
-ORIG_DIR=$(mktemp -d)
-clone "https://github.com/mixxxdj/mixxx.git" "$ORIG_DIR"
+TMP_DIR=$(mktemp -d)
+cleanup() { rm -rf "$TMP_DIR"; }
+trap cleanup EXIT
 
-# Extract the version and append the date
-VERSION=$(grep "define VERSION" "$ORIG_DIR/src/defs_version.h" | sed "s/[^0-9]*\([0-9][\.0-9]*\).*/\1/")
+ORIG_DIR="$TMP_DIR/orig"
+clone --ignore-hidden \
+  "https://github.com/mixxxdj/mixxx.git" \
+  "$ORIG_DIR"
+
+VERSION=$(grep "define MIXXX_VERSION" "$ORIG_DIR/src/defs_version.h" | sed "s/[^0-9]*\([0-9][\.0-9]*\).*/\1/")
 FULL_VERSION="$VERSION~$(date +"%Y%m%d%H%M%S")"
 
-DEBIAN_DIR=$(mktemp -d)
-clone "git://anonscm.debian.org/git/pkg-multimedia/mixxx.git" "$DEBIAN_DIR"
+DEBIAN_DIR="$TMP_DIR/orig/debian"
+clone \
+  --subdirectory=debian/ \
+  "git://anonscm.debian.org/git/pkg-multimedia/mixxx.git" \
+  "$DEBIAN_DIR"
 
 launchpad-submit \
-  --orig "$ORIG_DIR" \
-  --debian "$DEBIAN_DIR/debian" \
-  --ubuntu-releases trusty wily xenial yakkety \
+  --work-dir "$TMP_DIR" \
+  --ubuntu-releases trusty xenial yakkety zesty \
   --ppa nschloe/mixxx-nightly \
   --version-override "$FULL_VERSION" \
   --version-append-hash \
   --update-patches
-
-rm -rf "$ORIG_DIR"
-rm -rf "$DEBIAN_DIR"
 ```
 
 ### Installation
@@ -72,7 +76,7 @@ The launchpad tools are [available from the Python Package
 Index](https://pypi.python.org/pypi/launchpadtools/), so for
 installation/upgrading simply do
 ```
-pip install --upgrade launchpadtools
+pip install -U launchpadtools
 ```
 
 #### Manual installation
@@ -84,24 +88,15 @@ Place the launchpad tools in a directory where Python can find it (e.g.,
 ```
 python setup.py install
 ```
-or place the script `matplotlib2tikz.py` into the directory where you intend to
-use it.
 
 ### Distribution
 To create a new release
 
-1. bump the `__version__` number,
+1. bump the `__version__` number and
 
-2. create a Git tag,
+2. tag and upload to PyPi:
     ```
-    $ git tag v0.3.1
-    $ git push --tags
-    ```
-    and
-
-3. upload to PyPi:
-    ```
-    $ make upload
+    $ make publish
     ```
 
 ### License

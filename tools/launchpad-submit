@@ -10,13 +10,8 @@ import launchpadtools
 def _parse_cmd_arguments():
     parser = argparse.ArgumentParser(description='Submit builds to launchpad.')
     parser.add_argument(
-        '-r', '--orig',
-        help='Orig source'
-        )
-    parser.add_argument(
-        '-d', '--debian',
-        help='debian/ source',
-        default=None
+        '-w', '--work-dir',
+        help='Working directory. Has to contain `./orig/` and `./orig/debian`.'
         )
     parser.add_argument(
         '-s', '--dsc',
@@ -58,12 +53,6 @@ def _parse_cmd_arguments():
         default=False
         )
     parser.add_argument(
-        '-y', '--dry',
-        help='Dry run (do everything but the upload)',
-        action='store_true',
-        default=False
-        )
-    parser.add_argument(
         '-b', '--debuild-params',
         help='extra parameters passed to debuild',
         type=str,
@@ -79,15 +68,13 @@ def _parse_cmd_arguments():
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    if args.orig and args.dsc:
-        raise RuntimeError('Supply either one of --orig, --dsc, not both.')
+    if args.work_dir and args.dsc:
+        raise RuntimeError('Supply either one of --work-dir, --dsc, not both.')
 
-    if args.orig:
+    if args.work_dir:
         launchpadtools.submit.submit(
-            args.orig,
-            args.debian,
+            args.work_dir,
             args.ubuntu_releases,
-            args.dry,
             args.ppa,
             args.debuild_params,
             args.version_override,
@@ -99,9 +86,8 @@ if __name__ == '__main__':
         launchpadtools.submit.submit_dsc(
             args.dsc,
             args.ubuntu_releases,
-            args.dry,
             args.ppa,
             args.debuild_params
             )
     else:
-        raise RuntimeError('Supply one of --orig, --dsc.')
+        raise RuntimeError('Supply one of --work-dir, --dsc.')

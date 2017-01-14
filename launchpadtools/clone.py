@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 #
+from __future__ import print_function
+
 import git
 import hglib
 import os
@@ -22,6 +24,7 @@ def _get_dir_from_git(git_url):
         os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(git_url)
         )
     if os.path.isdir(repo_dir):
+        print(' (using repo cache at %s)' % repo_dir)
         repo = git.Repo(repo_dir)
         origin = repo.remotes.origin
         origin.pull()
@@ -36,6 +39,7 @@ def _get_dir_from_mercurial(url):
         os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(url)
         )
     if os.path.isdir(repo_dir):
+        print(' (using repo cache at %s)' % repo_dir)
         client = hglib.open(repo_dir)
         client.pull()
     else:
@@ -49,28 +53,29 @@ def _get_dir_from_svn(url):
         os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(url)
         )
     if os.path.isdir(repo_dir):
+        print(' (using repo cache at %s)' % repo_dir)
         os.chdir(repo_dir)
         # Call `svn info` first since `svn up` returns exit code 0 even if the
         # directory is not a repository.
         subprocess.check_call(
-                'svn info',
-                shell=True
-                )
+            'svn info',
+            shell=True
+            )
         subprocess.check_call(
-                'svn up',
-                shell=True
-                )
+            'svn up',
+            shell=True
+            )
     else:
         subprocess.check_call(
-                'svn checkout %s %s' % (url, repo_dir),
-                shell=True
-                )
+            'svn checkout %s %s' % (url, repo_dir),
+            shell=True
+            )
 
     return repo_dir
 
 
-def clone(source, out):
-    print('Cloning %s to %s...' % (source, out))
+def clone(source, out, subdirectory=None, ignore_hidden=True):
+    print('Cloning %s to %s...' % (source, out), end='')
     if os.path.exists(out):
         if not os.path.isdir(out):
             raise RuntimeError('Destination is not a directory.')
@@ -110,5 +115,12 @@ def clone(source, out):
         if not orig_dir:
             raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
-    helpers.copytree(orig_dir, out)
+    if subdirectory is None:
+        helpers.copytree(orig_dir, out, ignore_hidden=ignore_hidden)
+    else:
+        helpers.copytree(
+            os.path.join(orig_dir,subdirectory),
+            out,
+            ignore_hidden=ignore_hidden
+            )
     return
