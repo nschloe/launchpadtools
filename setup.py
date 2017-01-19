@@ -4,7 +4,11 @@ import os
 from distutils.core import setup
 import codecs
 
-from launchpadtools import __about__
+# https://packaging.python.org/single_source_version/
+base_dir = os.path.abspath(os.path.dirname(__file__))
+about = {}
+with open(os.path.join(base_dir, 'launchpadtools', '__about__.py')) as f:
+    exec(f.read(), about)
 
 
 def read(fname):
@@ -19,9 +23,9 @@ def read(fname):
 
 setup(
     name='launchpadtools',
-    version=__about__.__version__,
-    author=__about__.__author__,
-    author_email=__about__.__author_email__,
+    version=about['__version__'],
+    author=about['__author__'],
+    author_email=about['__author_email__'],
     packages=['launchpadtools'],
     description='Tools for Debian/Ubuntu Launchpad',
     long_description=read('README.rst'),
