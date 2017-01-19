@@ -10,6 +10,9 @@ python:
 
 before_install:
   - pip install pytest pytest-cov
+  - pip --version
+  - pip install -U pip
+  - pip --version
 
 install:
   # - pip install simplejson  # pip doesn't resolve dependencies :(
