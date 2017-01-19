@@ -2,6 +2,7 @@
 #
 from __future__ import print_function
 
+import appdirs
 import git
 import hglib
 import os
@@ -21,7 +22,8 @@ def _sanitize_directory_name(string):
 
 def _get_dir_from_git(git_url):
     repo_dir = os.path.join(
-        os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(git_url)
+        appdirs.user_cache_dir('launchpadtools', 'Nico Schlömer'),
+        _sanitize_directory_name(git_url)
         )
     if os.path.isdir(repo_dir):
         print(' (using repo cache at %s)' % repo_dir)
@@ -36,7 +38,8 @@ def _get_dir_from_git(git_url):
 
 def _get_dir_from_mercurial(url):
     repo_dir = os.path.join(
-        os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(url)
+        appdirs.user_cache_dir('launchpadtools', 'Nico Schlömer'),
+        _sanitize_directory_name(url)
         )
     if os.path.isdir(repo_dir):
         print(' (using repo cache at %s)' % repo_dir)
@@ -50,7 +53,8 @@ def _get_dir_from_mercurial(url):
 
 def _get_dir_from_svn(url):
     repo_dir = os.path.join(
-        os.sep, 'var', 'tmp', 'cloner', _sanitize_directory_name(url)
+        appdirs.user_cache_dir('launchpadtools', 'Nico Schlömer'),
+        _sanitize_directory_name(url)
         )
     if os.path.isdir(repo_dir):
         print(' (using repo cache at %s)' % repo_dir)
@@ -119,7 +123,7 @@ def clone(source, out, subdirectory=None, ignore_hidden=True):
         helpers.copytree(orig_dir, out, ignore_hidden=ignore_hidden)
     else:
         helpers.copytree(
-            os.path.join(orig_dir,subdirectory),
+            os.path.join(orig_dir, subdirectory),
             out,
             ignore_hidden=ignore_hidden
             )
