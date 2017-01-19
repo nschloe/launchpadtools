@@ -21,6 +21,7 @@ install:
 
 # run tests
 script:
+  - cd test/
   - pytest --cov launchpadtools
 
 after_success:
