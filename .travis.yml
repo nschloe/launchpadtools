@@ -12,6 +12,7 @@ before_install:
   - pip install pytest pytest-cov
 
 install:
+  - pip install simplejson  # pip doesn't resolve dependencies :(
   - pip install -r requirements.txt
   - pip install .
 
