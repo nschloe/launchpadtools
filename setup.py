@@ -29,7 +29,7 @@ setup(
     download_url='https://pypi.python.org/pypi/launchpadtools',
     license='License :: OSI Approved :: MIT License',
     platforms='any',
-    requires=[
+    install_requires=[
         'appdirs',
         'GitPython',
         'launchpadlib',
