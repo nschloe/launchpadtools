@@ -4,7 +4,7 @@ import os
 from distutils.core import setup
 import codecs
 
-from launchpadtools import __name__, __version__, __author__, __author_email__
+from launchpadtools import __about__
 
 
 def read(fname):
@@ -18,10 +18,10 @@ def read(fname):
     return content
 
 setup(
-    name=__name__,
-    version=__version__,
-    author=__author__,
-    author_email=__author_email__,
+    name='launchpadtools',
+    version=__about__.__version__,
+    author=__about__.__author__,
+    author_email=__about__.__author_email__,
     packages=['launchpadtools'],
     description='Tools for Debian/Ubuntu Launchpad',
     long_description=read('README.rst'),
