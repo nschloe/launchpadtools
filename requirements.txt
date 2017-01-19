@@ -1,3 +1,4 @@
+appdirs
 GitPython
 launchpadlib
 python-hglib
