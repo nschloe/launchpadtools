@@ -15,8 +15,9 @@ before_install:
   - pip --version
 
 install:
-  # - pip install simplejson  # pip doesn't resolve dependencies :(
-  # - pip install -r requirements.txt
+  # some dependency doesn't specify its dependencies correctly; perhaps
+  # launchpadlib
+  - pip install simplejson
   - pip install .
 
 # run tests
