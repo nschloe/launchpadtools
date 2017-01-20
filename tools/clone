@@ -35,7 +35,7 @@ def _parse_cmd_arguments():
     parser.add_argument(
         '-v', '--version',
         action='version',
-        version='launchpadtools %s' % launchpadtools.__version__
+        version='launchpadtools %s' % launchpadtools.__about__.__version__
         )
     return parser.parse_args()
 
