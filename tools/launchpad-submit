@@ -14,10 +14,6 @@ def _parse_cmd_arguments():
         help='Working directory. Has to contain `./orig/` and `./orig/debian`.'
         )
     parser.add_argument(
-        '-s', '--dsc',
-        help='DSC source'
-        )
-    parser.add_argument(
         '-u', '--ubuntu-releases',
         help='Ubuntu releases to build for',
         required=True,
@@ -61,33 +57,21 @@ def _parse_cmd_arguments():
     parser.add_argument(
         '-v', '--version',
         action='version',
-        version='launchpadtools %s' % launchpadtools.__about__.__version__
+        version='launchpadtools %s' % launchpadtools.__version__
         )
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = _parse_cmd_arguments()
-    if args.work_dir and args.dsc:
-        raise RuntimeError('Supply either one of --work-dir, --dsc, not both.')
 
-    if args.work_dir:
-        launchpadtools.submit.submit(
-            args.work_dir,
-            args.ubuntu_releases,
-            args.ppa,
-            args.debuild_params,
-            args.version_override,
-            args.version_append_hash,
-            args.force,
-            args.update_patches
-            )
-    elif args.dsc:
-        launchpadtools.submit.submit_dsc(
-            args.dsc,
-            args.ubuntu_releases,
-            args.ppa,
-            args.debuild_params
-            )
-    else:
-        raise RuntimeError('Supply one of --work-dir, --dsc.')
+    launchpadtools.submit.submit(
+        args.work_dir,
+        args.ubuntu_releases,
+        args.ppa,
+        args.debuild_params,
+        args.version_override,
+        args.version_append_hash,
+        args.force,
+        args.update_patches
+        )
