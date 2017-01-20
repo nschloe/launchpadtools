@@ -7,7 +7,6 @@ import platform
 import re
 import shutil
 import subprocess
-import tarfile
 import tempfile
 import time
 
@@ -254,53 +253,6 @@ def submit(
     return
 
 
-def submit_dsc(
-        dsc,
-        ubuntu_releases,
-        ppa_string,
-        debuild_params=''
-        ):
-    orig_tarballs, debian_dir = _get_items_from_dsc(dsc)
-
-    if not debian_dir:
-        tmp_dir = tempfile.mkdtemp()
-        os.chdir(tmp_dir)
-        for orig_tarball in orig_tarballs:
-            tar = tarfile.open(orig_tarball)
-            tar.extractall()
-            tar.close()
-
-        # Find the debian subdirectory
-        subdir = None
-        for item in os.listdir(tmp_dir):
-            if os.path.isdir(item):
-                subdir = os.path.join(tmp_dir, item)
-                break
-        debian_dir = os.path.join(tmp_dir, subdir, 'debian')
-        assert os.path.isdir(debian_dir)
-
-    name, version = _get_info_from_changelog(
-        os.path.join(debian_dir, 'changelog')
-        )
-    epoch, upstream_version, debian_version, ubuntu_version = \
-        _parse_package_version(version)
-
-    for ubuntu_release in ubuntu_releases:
-        _submit(
-            orig_tarballs,
-            debian_dir,
-            name,
-            upstream_version,
-            debian_version,
-            ubuntu_version,
-            ubuntu_release,
-            epoch,
-            ppa_string,
-            debuild_params
-            )
-    return
-
-
 def _submit(
         work_dir,
         orig_tarballs,
@@ -479,55 +431,3 @@ def _update_patches(directory):
         os.remove(ubuntu_series)
 
     return
-
-
-def _get_items_from_dsc(url):
-    tmp_dir = tempfile.mkdtemp()
-    os.chdir(tmp_dir)
-    subprocess.check_call(
-        'dget %s' % url,
-        shell=True
-        )
-
-    dsc_filename = os.path.basename(url)
-
-    # Get the orig/debian file names from the dsc file.
-    with open(dsc_filename, 'r') as f:
-        while f.readline().strip() != 'Files:':
-            pass
-
-        filenames = []
-        while True:
-            # The lines have the form
-            #
-            # 74c21e7d24df6f98db139... 1681868 git-buildpackage_0.7.4.tar.xz
-            #
-            # and we're interested in the last part, the file name.
-            line = f.readline().strip()
-            m = re.match(' *[a-z0-9]+ +[0-9]+ +([^ ]+).*', line)
-            if m:
-                filenames.append(m.group(1))
-            else:
-                # bail on the first line that doesn't match
-                break
-
-    # check if there's a `tar`ed debian directory
-    debian_dir = None
-    debian_tar = None
-    for filename in filenames:
-        if re.search('\.debian\.', filename):
-            debian_tar = filename
-            # Unpack the debian tarball
-            tar = tarfile.open(filename)
-            tar.extractall()
-            tar.close()
-            #
-            debian_dir = os.path.join(tmp_dir, os.path.join(tmp_dir, 'debian'))
-            assert os.path.isdir(debian_dir)
-            break
-
-    if debian_tar:
-        filenames.remove(filename)
-    orig_tarballs = [os.path.join(tmp_dir, filename) for filename in filenames]
-
-    return orig_tarballs, debian_dir
