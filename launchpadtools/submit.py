@@ -52,13 +52,17 @@ def _parse_package_version(version):
 def _get_tree_hash(directory):
     '''Returns Git tree hash of a directory.
     '''
-    assert not os.path.isdir(os.path.join(directory, '.git'))
+    try:
+        repo = git.Repo(directory)
+    except:
+        repo = git.Repo.init(directory)
 
-    # Create repo
-    repo = git.Repo.init(directory)
-    # The add step can take really long.
-    repo.index.add('*')
-    repo.index.commit('import orig')
+    # The add step can take really long if many files need to be added.
+    # Use git's own `git add -A` rather than GitPython's repo.index.add('*')
+    # since the latter takes a really long time if the repo is large, even if
+    # it's already almost completely checked in.
+    repo.git.add('-A')
+    repo.index.commit('launchpadtools commit')
     tree_hash = repo.tree().hexsha
 
     # clean up
@@ -155,16 +159,6 @@ def submit(
 
     debian_dir = os.path.join(orig_dir, 'debian')
     assert os.path.isdir(debian_dir)
-
-    # Remove git-related entities to ensure a smooth creation of the repo
-    # below.
-    for dirpath, dnames, fnames in os.walk(orig_dir):
-        for f in fnames:
-            if f in ['.gitignore']:
-                os.remove(os.path.join(dirpath, f))
-        for d in dnames:
-            if d in ['.git']:
-                shutil.rmtree(os.path.join(dirpath, d))
 
     name, version = _get_info_from_changelog(
         os.path.join(debian_dir, 'changelog')
