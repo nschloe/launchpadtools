@@ -89,6 +89,7 @@ def clone(source, out, subdirectory=None, ignore_hidden=True):
         else:
             raise RuntimeError('Destination directory is not empty.')
 
+    is_git = False
     if os.path.isdir(source):
         orig_dir = source
     else:
@@ -97,17 +98,17 @@ def clone(source, out, subdirectory=None, ignore_hidden=True):
         if not orig_dir:
             try:
                 orig_dir = _get_dir_from_git(source)
-            except git.exc.GitCommandError:
-                pass
-            except git.exc.InvalidGitRepositoryError:
+                is_git = True
+            except (
+                    git.exc.GitCommandError,
+                    git.exc.InvalidGitRepositoryError
+                    ):
                 pass
 
         if not orig_dir:
             try:
                 orig_dir = _get_dir_from_mercurial(source)
-            except hglib.error.ServerError:
-                pass
-            except hglib.error.CommandError:
+            except (hglib.error.ServerError, hglib.error.CommandError):
                 pass
 
         if not orig_dir:
@@ -120,11 +121,19 @@ def clone(source, out, subdirectory=None, ignore_hidden=True):
             raise RuntimeError('Couldn\'t handle source %s. Abort.' % source)
 
     if subdirectory is None:
-        helpers.copytree(orig_dir, out, ignore_hidden=ignore_hidden)
+        if is_git:
+            git.Repo.clone_from(
+                orig_dir, out, recursive=True, shared=True
+                )
+        else:
+            helpers.copytree(
+                orig_dir, out, ignore_hidden=ignore_hidden
+                )
     else:
         helpers.copytree(
             os.path.join(orig_dir, subdirectory),
             out,
             ignore_hidden=ignore_hidden
             )
+
     return
