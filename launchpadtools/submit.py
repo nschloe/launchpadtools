@@ -7,7 +7,6 @@ import platform
 import re
 import shutil
 import subprocess
-import tempfile
 import time
 
 
@@ -351,7 +350,7 @@ def _submit(
     else:  # 'debian':
         # Debian's dput must be told about the launchpad PPA via a config
         # file. Make it temporary.
-        handle, filename = tempfile.mkstemp()
+        filename = os.path.join(work_dir, 'dput.cf')
         with open(filename, 'w') as f:
             f.write('''[%s-nightly]
 fqdn = ppa.launchpad.net
@@ -360,14 +359,21 @@ incoming = ~%s/ubuntu/
 login = anonymous
 allow_unsigned_uploads = 0''' % (name, ppa_string))
 
-        subprocess.check_call([
-            'dput',
-            '-c', filename,
-            '%s-nightly' % name,
-            '%s_%s_source.changes' % (name, chlog_version)
-            ])
-
-        os.remove(filename)
+        try:
+            subprocess.check_call([
+                'dput',
+                '-c', filename,
+                '%s-nightly' % name,
+                '%s_%s_source.changes' % (name, chlog_version)
+                ])
+        except subprocess.CalledProcessError as e:
+            print('Command:')
+            print(' '.join(e.cmd))
+            print('Return code:')
+            print(e.returncode)
+            print('Output:')
+            print(e.output)
+            raise
 
     return
 
