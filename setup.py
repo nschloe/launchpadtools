@@ -34,10 +34,7 @@ setup(
     license='License :: OSI Approved :: MIT License',
     platforms='any',
     install_requires=[
-        'appdirs',
-        'GitPython',
         'launchpadlib',
-        'python-hglib',
         ],
     classifiers=[
         'Development Status :: 4 - Beta',
