@@ -7,5 +7,4 @@ from launchpadtools.__about__ import (
     __author_email__,
     )
 
-from . import cclone
 from . import submit
