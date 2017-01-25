@@ -34,6 +34,7 @@ setup(
     license='License :: OSI Approved :: MIT License',
     platforms='any',
     install_requires=[
+        'GitPython',
         'launchpadlib',
         ],
     classifiers=[
