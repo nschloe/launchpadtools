@@ -34,23 +34,21 @@ setup(
     license='License :: OSI Approved :: MIT License',
     platforms='any',
     install_requires=[
-        'appdirs',
         'GitPython',
         'launchpadlib',
-        'python-hglib',
         ],
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
-        'Intended Audience :: Science/Research',
+        'Intended Audience :: Developers',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Build Tools',
         'Topic :: System :: Operating System'
         ],
     scripts=[
-        'tools/clone',
         'tools/launchpad-submit',
         ]
     )

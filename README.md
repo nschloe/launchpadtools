@@ -26,18 +26,16 @@ cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
 
 ORIG_DIR="$TMP_DIR/orig"
-clone --ignore-hidden \
-  "https://github.com/mixxxdj/mixxx.git" \
-  "$ORIG_DIR"
+CACHE="$HOME/.cache/repo/mixxx"
+git -C "$CACHE" pull || git clone "https://github.com/mixxxdj/mixxx.git" "$CACHE"
+git clone --shared "$CACHE" "$ORIG_DIR"
 
 VERSION=$(grep "define MIXXX_VERSION" "$ORIG_DIR/src/defs_version.h" | sed "s/[^0-9]*\([0-9][\.0-9]*\).*/\1/")
 FULL_VERSION="$VERSION~$(date +"%Y%m%d%H%M%S")"
 
-DEBIAN_DIR="$TMP_DIR/orig/debian"
-clone \
-  --subdirectory=debian/ \
-  "git://anonscm.debian.org/git/pkg-multimedia/mixxx.git" \
-  "$DEBIAN_DIR"
+CACHE="$HOME/.cache/repo/mixxx-debian"
+git -C "$CACHE" pull || git clone "git://anonscm.debian.org/git/pkg-multimedia/mixxx.git" "$CACHE"
+rsync -a "$CACHE/debian" "$ORIG_DIR"
 
 launchpad-submit \
   --work-dir "$TMP_DIR" \
