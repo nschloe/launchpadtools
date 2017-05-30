@@ -351,12 +351,18 @@ def _submit(
         # Debian's dput must be told about the launchpad PPA via a config
         # file. Make it temporary.
         filename = os.path.join(work_dir, 'dput.cf')
+        # Methods allowed: ftp
+        # Methods not allowed:
+        #  * http (405)
+        #  * https (405)
+        #  * scp (Not allowed to execute commands on this server.)
+        #  * rsync (Not allowed to execute commands on this server.)
         with open(filename, 'w') as f:
             f.write('''[%s-nightly]
 fqdn = ppa.launchpad.net
-method = ftp
+method = sftp
 incoming = ~%s/ubuntu/
-login = anonymous
+login = nschloe
 allow_unsigned_uploads = 0''' % (name, ppa_string))
 
         try:
