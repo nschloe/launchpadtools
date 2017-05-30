@@ -147,6 +147,7 @@ def submit(
         work_dir,
         ubuntu_releases,
         ppa_string,
+        launchpad_login_name,
         debuild_params='',
         version_override=None,
         version_append_hash=False,
@@ -240,9 +241,9 @@ def submit(
             ubuntu_release,
             epoch,
             ppa_string,
+            launchpad_login_name,
             debuild_params
             )
-
     return
 
 
@@ -257,6 +258,7 @@ def _submit(
         ubuntu_release,
         slot,
         ppa_string,
+        launchpad_login_name,
         debuild_params=''
         ):
     # quick workaround
@@ -351,19 +353,18 @@ def _submit(
         # Debian's dput must be told about the launchpad PPA via a config
         # file. Make it temporary.
         filename = os.path.join(work_dir, 'dput.cf')
-        # Methods allowed: ftp
-        # Methods not allowed:
-        #  * http (405)
-        #  * https (405)
-        #  * scp (Not allowed to execute commands on this server.)
-        #  * rsync (Not allowed to execute commands on this server.)
+        # Use SFTP here; amongst other things, it's more robust against flaky
+        # connections.
+        # Note that launchpad must have a valid public key, and
+        # ppa.launchpad.net must have been added to the list of known hosts.
+        # See <https://unix.stackexchange.com/a/368141/40432>.
         with open(filename, 'w') as f:
             f.write('''[%s-nightly]
 fqdn = ppa.launchpad.net
 method = sftp
 incoming = ~%s/ubuntu/
-login = nschloe
-allow_unsigned_uploads = 0''' % (name, ppa_string))
+login = %s
+allow_unsigned_uploads = 0''' % (name, ppa_string, launchpad_login_name))
 
         try:
             subprocess.check_call([

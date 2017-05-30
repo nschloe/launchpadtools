@@ -26,6 +26,12 @@ def _parse_cmd_arguments():
         required=True
         )
     parser.add_argument(
+        '-l', '--launchpad-login',
+        help='login name on launchpad (for SFTP)',
+        type=str,
+        required=True
+        )
+    parser.add_argument(
         '-o', '--version-override',
         help='Override package version',
         type=str
@@ -69,9 +75,10 @@ if __name__ == '__main__':
         args.work_dir,
         args.ubuntu_releases,
         args.ppa,
+        args.launchpad_login,
         args.debuild_params,
         args.version_override,
         args.version_append_hash,
         args.force,
-        args.update_patches
+        args.update_patches,
         )
