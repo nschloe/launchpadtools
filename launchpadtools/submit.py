@@ -3,7 +3,6 @@
 import git
 from launchpadlib.launchpad import Launchpad
 import os
-import platform
 import re
 import shutil
 import subprocess
@@ -340,47 +339,57 @@ def _submit(
     print()
     print('Uploading to PPA %s...' % ppa_string)
     print()
-    assert platform.linux_distribution()[0] in ['debian', 'Ubuntu']
-    if platform.linux_distribution()[0] == 'ubuntu':
-        # Ubuntu's dput handles uploads to launchpad PPAs
-        # automatically.
-        subprocess.check_call([
-            'dput',
-            'ppa:%s' % ppa_string,
-            '%s_%s_source.changes' % (name, chlog_version)
-            ])
-    else:  # 'debian':
-        # Debian's dput must be told about the launchpad PPA via a config
-        # file. Make it temporary.
-        filename = os.path.join(work_dir, 'dput.cf')
-        # Use SFTP here; amongst other things, it's more robust against flaky
-        # connections.
-        # Note that launchpad must have a valid public key, and
-        # ppa.launchpad.net must have been added to the list of known hosts.
-        # See <https://unix.stackexchange.com/a/368141/40432>.
-        with open(filename, 'w') as f:
-            f.write('''[%s-nightly]
+    for filename in [
+            '%s_%s.debian.tar.xz' % (name, chlog_version),
+            '%s_%s.dsc' % (name, chlog_version),
+            '%s_%s_source.build' % (name, chlog_version),
+            '%s_%s_source.changes' % (name, chlog_version),
+            '%s_%s.orig.tar.gz' % (name, upstream_version),
+            ]:
+        print('    %s: %s' % (filename, _get_filesize(filename)))
+    print()
+
+    # Alternative upload from Ubuntu:
+    # ```
+    # subprocess.check_call([
+    #     'dput',
+    #     'ppa:%s' % ppa_string,
+    #     '%s_%s_source.changes' % (name, chlog_version)
+    #     ])
+    # ```
+    # This does not take SFTP however.
+
+    # Debian's dput must be told about the launchpad PPA via a config
+    # file. Make it temporary.
+    filename = os.path.join(work_dir, 'dput.cf')
+    # Use SFTP here; amongst other things, it's more robust against flaky
+    # connections.
+    # Note that launchpad must have a valid public key, and
+    # ppa.launchpad.net must have been added to the list of known hosts.
+    # See <https://unix.stackexchange.com/a/368141/40432>.
+    with open(filename, 'w') as f:
+        f.write('''[%s-nightly]
 fqdn = ppa.launchpad.net
 method = sftp
 incoming = ~%s/ubuntu/
 login = %s
 allow_unsigned_uploads = 0''' % (name, ppa_string, launchpad_login_name))
 
-        try:
-            subprocess.check_call([
-                'dput',
-                '-c', filename,
-                '%s-nightly' % name,
-                '%s_%s_source.changes' % (name, chlog_version)
-                ])
-        except subprocess.CalledProcessError as e:
-            print('Command:')
-            print(' '.join(e.cmd))
-            print('Return code:')
-            print(e.returncode)
-            print('Output:')
-            print(e.output)
-            raise
+    try:
+        subprocess.check_call([
+            'dput',
+            '-c', filename,
+            '%s-nightly' % name,
+            '%s_%s_source.changes' % (name, chlog_version)
+            ])
+    except subprocess.CalledProcessError as e:
+        print('Command:')
+        print(' '.join(e.cmd))
+        print('Return code:')
+        print(e.returncode)
+        print('Output:')
+        print(e.output)
+        raise
 
     return
 
