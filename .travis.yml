@@ -9,7 +9,7 @@ python:
     # - '3.4'
 
 before_install:
-  - pip install pytest pytest-cov
+  - pip install pytest pytest-cov pylint
 
 install:
   # some dependency doesn't specify its dependencies correctly; perhaps
@@ -19,8 +19,8 @@ install:
 
 # run tests
 script:
-  - cd test/
-  - pytest --cov launchpadtools
+  - pylint launchpadtools
+  - cd test/ && pytest --cov launchpadtools
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
