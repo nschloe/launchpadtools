@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
+from setuptools import setup
 import os
-from distutils.core import setup
 import codecs
 
 # https://packaging.python.org/single_source_version/
@@ -21,6 +21,7 @@ def read(fname):
         content = ''
     return content
 
+
 setup(
     name='launchpadtools',
     version=about['__version__'],
@@ -31,15 +32,15 @@ setup(
     long_description=read('README.rst'),
     url='https://github.com/nschloe/launchpadtools',
     download_url='https://pypi.python.org/pypi/launchpadtools',
-    license='License :: OSI Approved :: MIT License',
+    license=about['__license__'],
     platforms='any',
     install_requires=[
         'GitPython',
         'launchpadlib',
         ],
     classifiers=[
-        'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: MIT License',
+        about['__status__'],
+        about['__license__'],
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
