@@ -1,0 +1,10 @@
+[MESSAGES CONTROL]
+
+good-names=f
+
+disable=
+    bad-continuation,
+    fixme,
+    missing-docstring,
+    too-many-arguments,
+    too-many-locals
