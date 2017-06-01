@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 #
-import git
-from launchpadlib.launchpad import Launchpad
+from __future__ import print_function
+
 import os
 import re
 import shutil
 import subprocess
 import time
 
+import git
+from launchpadlib.launchpad import Launchpad
+
 
 def _get_info_from_changelog(changelog):
-    with open(changelog, 'r') as f:
-        first_line = f.readline()
+    with open(changelog, 'r') as handle:
+        first_line = handle.readline()
         search = re.search(
-            '^( *[^ ]+) *\(([^\)]+)\).*',
+            '^( *[^ ]+) *\\(([^\\)]+)\\).*',
             first_line,
             re.IGNORECASE
             )
@@ -26,19 +29,19 @@ def _get_info_from_changelog(changelog):
 def _parse_package_version(version):
     '''Dissect version in upstream, debian/ubuntu parts.
     '''
-    m = re.match('(([0-9]+):)?(.*)', version)
-    if m:
-        epoch = m.group(2)
-        version = m.group(3)
+    out = re.match('(([0-9]+):)?(.*)', version)
+    if out:
+        epoch = out.group(2)
+        version = out.group(3)
     else:
         epoch = None
 
     parts = version.split('-')
-    m = re.match('([0-9\.]*)[a-z]*([0-9\.]*)', parts[-1])
-    if len(parts) > 1 and m:
+    out = re.match('([0-9\\.]*)[a-z]*([0-9\\.]*)', parts[-1])
+    if len(parts) > 1 and out:
         upstream = '-'.join(parts[:-1])
-        debian = m.group(1)
-        ubuntu = m.group(2)
+        debian = out.group(1)
+        ubuntu = out.group(2)
     else:
         upstream = version
         debian = None
@@ -52,7 +55,7 @@ def _get_tree_hash(directory):
     '''
     try:
         repo = git.Repo(directory)
-    except:
+    except git.InvalidGitRepositoryError:
         repo = git.Repo.init(directory)
 
     # The add step can take really long if many files need to be added.
@@ -99,15 +102,15 @@ def _create_tarball(directory, tarball, prefix, excludes=None):
     repo_dir_without_leading_slash = \
         directory[1:] if directory[0] == '/' else directory
     transform = 's/^%s/%s/' \
-        % (repo_dir_without_leading_slash.replace('/', '\/'), prefix)
+        % (repo_dir_without_leading_slash.replace('/', '\\/'), prefix)
     cmd = [
         'tar',
         '--transform', transform,
         '-czf', tarball,
         directory
         ]
-    for ex in excludes:
-        cmd.append('--exclude=%s' % ex)
+    for exclude in excludes:
+        cmd.append('--exclude=%s' % exclude)
 
     subprocess.check_call(cmd, env={'GZIP': '-n'})
 
@@ -127,7 +130,7 @@ def _release_has_same_hash(name, tree_hash_short, ppa, ubuntu_release):
     has_same_hash = False
     # Expect a package version of the form
     # 2.1.0~20160504184836-01b3a567-trusty1
-    if len(published_in_series.entries) > 0:
+    if published_in_series.entries:
         # The source_package_versions have the form
         #
         #   4.3.1-developer~20161001024503-3ea99bea-1trusty1
@@ -175,9 +178,9 @@ def submit(
     else:
         # Check if this version has already been published.
         print('\nCheck for tree hash on PPA...')
-        lp = Launchpad.login_anonymously('foo', 'production', None)
+        launchpad = Launchpad.login_anonymously('foo', 'production', None)
         ppa_owner, ppa_name = tuple(ppa_string.split('/'))
-        owner = lp.people[ppa_owner]
+        owner = launchpad.people[ppa_owner]
         ppa = owner.getPPAByName(name=ppa_name)
 
         submit_releases = [
@@ -187,13 +190,11 @@ def submit(
             ]
         print('done.')
 
-    if len(submit_releases) == 0:
+    if not submit_releases:
         print('\nEverything up-to-date. No submissions necessary.\n')
         return
-    else:
-        print()
-        print('\nSubmitting to %s.' % ', '.join(submit_releases))
-        print()
+
+    print('\n\nSubmitting to %s.\n' % ', '.join(submit_releases))
 
     # Dissect version in upstream, debian/ubuntu parts.
     epoch, upstream_version, debian_version, ubuntu_version = \
@@ -277,8 +278,8 @@ def _submit(
     prefix = os.path.basename(os.path.normpath(orig_dir))
     assert os.path.isdir(orig_dir)
 
-    dd = os.path.join(work_dir, prefix, 'debian')
-    assert os.path.isdir(dd)
+    debian_dir = os.path.join(work_dir, prefix, 'debian')
+    assert os.path.isdir(debian_dir)
 
     # We cannot use "-ubuntu1" as a suffix here since we'd like to submit for
     # multiple ubuntu releases. If the version strings were exactly the same,
@@ -382,13 +383,13 @@ allow_unsigned_uploads = 0''' % (name, ppa_string, launchpad_login_name))
             '%s-nightly' % name,
             '%s_%s_source.changes' % (name, chlog_version)
             ])
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError as exception:
         print('Command:')
-        print(' '.join(e.cmd))
+        print(' '.join(exception.cmd))
         print('Return code:')
-        print(e.returncode)
+        print(exception.returncode)
         print('Output:')
-        print(e.output)
+        print(exception.output)
         raise
 
     return
@@ -433,7 +434,7 @@ def _update_patches(directory):
         env={'QUILT_PATCHES': 'debian/patches'}
         )
     all_patches = out.decode('utf-8').split('\n')[:-1]
-    if len(all_patches) > 0:
+    if all_patches:
         subprocess.check_call(
             ['quilt', 'pop', '-a'],
             env={'QUILT_PATCHES': 'debian/patches'}
