@@ -158,7 +158,8 @@ def submit(
         version_override=None,
         version_append_hash=False,
         force=False,
-        do_update_patches=False
+        do_update_patches=False,
+        dry=False
         ):
     orig_dir = os.path.join(work_dir, 'orig')
     assert os.path.isdir(orig_dir)
@@ -247,7 +248,8 @@ def submit(
                 epoch,
                 ppa_string,
                 launchpad_login_name,
-                debuild_params
+                debuild_params,
+                dry
                 )
         except DputException:
             pass
@@ -266,7 +268,8 @@ def _submit(
         slot,
         ppa_string,
         launchpad_login_name,
-        debuild_params=''
+        debuild_params='',
+        dry=False
         ):
     # quick workaround
     # TODO fix
@@ -356,6 +359,9 @@ def _submit(
             ]:
         print('    %s: %s' % (filename, _get_filesize(filename)))
     print()
+
+    if dry:
+        return
 
     # Alternative upload from Ubuntu:
     # ```
