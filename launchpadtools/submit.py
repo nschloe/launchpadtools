@@ -389,11 +389,11 @@ def _submit(
     for method, login_name in configs:
         with open(filename, 'w') as f:
             f.write('''[%s-nightly]
-    fqdn = ppa.launchpad.net
-    method = %s
-    incoming = ~%s/ubuntu/
-    login = %s
-    allow_unsigned_uploads = 0''' % (name, method, ppa_string, login_name))
+fqdn = ppa.launchpad.net
+method = %s
+incoming = ~%s/ubuntu/
+login = %s
+allow_unsigned_uploads = 0''' % (name, method, ppa_string, login_name))
         try:
             subprocess.check_call([
                 'dput',
