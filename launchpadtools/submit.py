@@ -427,15 +427,10 @@ def _update_patches(directory):
     os.chdir(directory)
 
     # We need the number of patches so we don't call `quilt push` too often.
-    try:
-        out = subprocess.check_output(
-            ['quilt', 'series'],
-            env={'QUILT_PATCHES': 'debian/patches'}
-            )
-    except subprocess.CalledProcessError:
-        print('No patches found.')
-        return
-
+    out = subprocess.check_output(
+        ['quilt', 'series'],
+        env={'QUILT_PATCHES': 'debian/patches'}
+        )
     all_patches = out.decode('utf-8').split('\n')[:-1]
 
     for patch in all_patches:
