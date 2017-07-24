@@ -351,7 +351,7 @@ def _submit(
     print('Uploading to PPA %s...' % ppa_string)
     print()
     for filename in [
-            '%s_%s.debian.tar.xz' % (name, chlog_version),
+            # '%s_%s.debian.tar.xz' % (name, chlog_version),
             '%s_%s.dsc' % (name, chlog_version),
             '%s_%s_source.build' % (name, chlog_version),
             '%s_%s_source.changes' % (name, chlog_version),
