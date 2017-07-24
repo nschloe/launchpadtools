@@ -12,7 +12,7 @@ def test():
         debuild_params='',
         version_override='1.2.3',
         version_append_hash=True,
-        force=False,
+        force=True,
         do_update_patches=True,
         dry=True
         )
