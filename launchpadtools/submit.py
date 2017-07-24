@@ -336,6 +336,9 @@ def _submit(
         'launchpad-submit update'
         ])
 
+    if dry:
+        return
+
     # Call debuild, the actual workhorse
     os.chdir(os.path.join(work_dir, prefix))
     subprocess.check_call([
@@ -359,9 +362,6 @@ def _submit(
             ]:
         print('    %s: %s' % (filename, _get_filesize(filename)))
     print()
-
-    if dry:
-        return
 
     # Alternative upload from Ubuntu:
     # ```
