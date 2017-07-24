@@ -9,7 +9,7 @@ jobs:
       - image: ubuntu:17.04
     steps:
       - run: apt-get update
-      - run: apt-get install -y python-pip git quilt devscripts
+      - run: apt-get install -y python-pip git quilt devscripts debhelper
       - run: pip2 install -U pytest pytest-cov pylint
       # some dependency doesn't specify its dependencies correctly; perhaps
       # launchpadlib
