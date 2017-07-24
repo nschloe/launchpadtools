@@ -370,33 +370,43 @@ def _submit(
     # Debian's dput must be told about the launchpad PPA via a config
     # file. Make it temporary.
     filename = os.path.join(work_dir, 'dput.cf')
-    # Use SFTP here; amongst other things, it's more robust against flaky
-    # connections.
+    # Try using SFTP here first; amongst other things, it's more robust against
+    # flaky connections.
     # Note that launchpad must have a valid public key, and
     # ppa.launchpad.net must have been added to the list of known hosts.
     # See <https://unix.stackexchange.com/a/368141/40432>.
-    with open(filename, 'w') as f:
-        f.write('''[%s-nightly]
-fqdn = ppa.launchpad.net
-method = sftp
-incoming = ~%s/ubuntu/
-login = %s
-allow_unsigned_uploads = 0''' % (name, ppa_string, launchpad_login_name))
+    configs = [
+        ('sftp', launchpad_login_name),
+        ('ftp', 'anonymous')
+        ]
+    success = False
+    for method, login_name in configs:
+        with open(filename, 'w') as f:
+            f.write('''[%s-nightly]
+    fqdn = ppa.launchpad.net
+    method = %s
+    incoming = ~%s/ubuntu/
+    login = %s
+    allow_unsigned_uploads = 0''' % (name, method, ppa_string, login_name))
+        try:
+            subprocess.check_call([
+                'dput',
+                '-c', filename,
+                '%s-nightly' % name,
+                '%s_%s_source.changes' % (name, chlog_version)
+                ])
+        except subprocess.CalledProcessError as exception:
+            print('Command:')
+            print(' '.join(exception.cmd))
+            print('Return code:')
+            print(exception.returncode)
+            print('Output:')
+            print(exception.output)
+        else:
+            success = True
+            break
 
-    try:
-        subprocess.check_call([
-            'dput',
-            '-c', filename,
-            '%s-nightly' % name,
-            '%s_%s_source.changes' % (name, chlog_version)
-            ])
-    except subprocess.CalledProcessError as exception:
-        print('Command:')
-        print(' '.join(exception.cmd))
-        print('Return code:')
-        print(exception.returncode)
-        print('Output:')
-        print(exception.output)
+    if not success:
         raise DputException
 
     return
