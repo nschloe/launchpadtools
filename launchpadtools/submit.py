@@ -12,6 +12,10 @@ import git
 from launchpadlib.launchpad import Launchpad
 
 
+class DputException(Exception):
+    pass
+
+
 def _get_info_from_changelog(changelog):
     with open(changelog, 'r') as handle:
         first_line = handle.readline()
@@ -230,20 +234,23 @@ def submit(
           )
 
     for ubuntu_release in submit_releases:
-        _submit(
-            work_dir,
-            [orig_tarball],
-            orig_dir,
-            name,
-            upstream_version,
-            debian_version,
-            ubuntu_version,
-            ubuntu_release,
-            epoch,
-            ppa_string,
-            launchpad_login_name,
-            debuild_params
-            )
+        try:
+            _submit(
+                work_dir,
+                [orig_tarball],
+                orig_dir,
+                name,
+                upstream_version,
+                debian_version,
+                ubuntu_version,
+                ubuntu_release,
+                epoch,
+                ppa_string,
+                launchpad_login_name,
+                debuild_params
+                )
+        except DputException:
+            pass
     return
 
 
@@ -390,7 +397,7 @@ allow_unsigned_uploads = 0''' % (name, ppa_string, launchpad_login_name))
         print(exception.returncode)
         print('Output:')
         print(exception.output)
-        raise
+        raise DputException
 
     return
 
