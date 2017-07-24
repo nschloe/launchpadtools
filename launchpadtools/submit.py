@@ -12,6 +12,10 @@ import git
 from launchpadlib.launchpad import Launchpad
 
 
+class DputException(Exception):
+    pass
+
+
 def _get_info_from_changelog(changelog):
     with open(changelog, 'r') as handle:
         first_line = handle.readline()
@@ -154,7 +158,8 @@ def submit(
         version_override=None,
         version_append_hash=False,
         force=False,
-        do_update_patches=False
+        do_update_patches=False,
+        dry=False
         ):
     orig_dir = os.path.join(work_dir, 'orig')
     assert os.path.isdir(orig_dir)
@@ -230,20 +235,24 @@ def submit(
           )
 
     for ubuntu_release in submit_releases:
-        _submit(
-            work_dir,
-            [orig_tarball],
-            orig_dir,
-            name,
-            upstream_version,
-            debian_version,
-            ubuntu_version,
-            ubuntu_release,
-            epoch,
-            ppa_string,
-            launchpad_login_name,
-            debuild_params
-            )
+        try:
+            _submit(
+                work_dir,
+                [orig_tarball],
+                orig_dir,
+                name,
+                upstream_version,
+                debian_version,
+                ubuntu_version,
+                ubuntu_release,
+                epoch,
+                ppa_string,
+                launchpad_login_name,
+                debuild_params,
+                dry
+                )
+        except DputException:
+            pass
     return
 
 
@@ -259,7 +268,8 @@ def _submit(
         slot,
         ppa_string,
         launchpad_login_name,
-        debuild_params=''
+        debuild_params='',
+        dry=False
         ):
     # quick workaround
     # TODO fix
@@ -326,6 +336,9 @@ def _submit(
         'launchpad-submit update'
         ])
 
+    if dry:
+        return
+
     # Call debuild, the actual workhorse
     os.chdir(os.path.join(work_dir, prefix))
     subprocess.check_call([
@@ -341,7 +354,7 @@ def _submit(
     print('Uploading to PPA %s...' % ppa_string)
     print()
     for filename in [
-            '%s_%s.debian.tar.xz' % (name, chlog_version),
+            # '%s_%s.debian.tar.xz' % (name, chlog_version),
             '%s_%s.dsc' % (name, chlog_version),
             '%s_%s_source.build' % (name, chlog_version),
             '%s_%s_source.changes' % (name, chlog_version),
@@ -363,34 +376,44 @@ def _submit(
     # Debian's dput must be told about the launchpad PPA via a config
     # file. Make it temporary.
     filename = os.path.join(work_dir, 'dput.cf')
-    # Use SFTP here; amongst other things, it's more robust against flaky
-    # connections.
+    # Try using SFTP here first; amongst other things, it's more robust against
+    # flaky connections.
     # Note that launchpad must have a valid public key, and
     # ppa.launchpad.net must have been added to the list of known hosts.
     # See <https://unix.stackexchange.com/a/368141/40432>.
-    with open(filename, 'w') as f:
-        f.write('''[%s-nightly]
-fqdn = ppa.launchpad.net
-method = sftp
-incoming = ~%s/ubuntu/
-login = %s
-allow_unsigned_uploads = 0''' % (name, ppa_string, launchpad_login_name))
+    configs = [
+        ('sftp', launchpad_login_name),
+        ('ftp', 'anonymous')
+        ]
+    success = False
+    for method, login_name in configs:
+        with open(filename, 'w') as f:
+            f.write('''[%s-nightly]
+    fqdn = ppa.launchpad.net
+    method = %s
+    incoming = ~%s/ubuntu/
+    login = %s
+    allow_unsigned_uploads = 0''' % (name, method, ppa_string, login_name))
+        try:
+            subprocess.check_call([
+                'dput',
+                '-c', filename,
+                '%s-nightly' % name,
+                '%s_%s_source.changes' % (name, chlog_version)
+                ])
+        except subprocess.CalledProcessError as exception:
+            print('Command:')
+            print(' '.join(exception.cmd))
+            print('Return code:')
+            print(exception.returncode)
+            print('Output:')
+            print(exception.output)
+        else:
+            success = True
+            break
 
-    try:
-        subprocess.check_call([
-            'dput',
-            '-c', filename,
-            '%s-nightly' % name,
-            '%s_%s_source.changes' % (name, chlog_version)
-            ])
-    except subprocess.CalledProcessError as exception:
-        print('Command:')
-        print(' '.join(exception.cmd))
-        print('Return code:')
-        print(exception.returncode)
-        print('Output:')
-        print(exception.output)
-        raise
+    if not success:
+        raise DputException
 
     return
 

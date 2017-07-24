@@ -20,6 +20,7 @@ install:
 # run tests
 script:
   - pylint launchpadtools
+  - ./test/dockergc.sh
   - cd test/ && pytest --cov launchpadtools
 
 after_success:
