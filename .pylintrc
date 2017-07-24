@@ -7,4 +7,5 @@ disable=
     fixme,
     missing-docstring,
     too-many-arguments,
-    too-many-locals
+    too-many-locals,
+    too-many-statements
