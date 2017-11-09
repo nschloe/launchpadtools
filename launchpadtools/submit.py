@@ -345,6 +345,8 @@ def _submit(
         'debuild',
         debuild_params,
         '-S',  # build source package only
+        # build dependencies are only needed on launchpad, not locally
+        '--no-check-builddeps',
         '--lintian-opts', '-EvIL', '+pedantic'
         ])
 
