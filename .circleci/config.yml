@@ -8,15 +8,16 @@ jobs:
       - image: ubuntu:18.04
     steps:
       - run: apt-get update
-      - run: apt-get install -y python-pip git quilt devscripts debhelper
-      - run: pip2 install -U pytest pytest-cov pylint
+      - run: apt-get install -y python3-pip git quilt devscripts debhelper
+      - run: pip3 install -U pytest pytest-cov pylint
       # some dependency doesn't specify its dependencies correctly; perhaps
       # launchpadlib
-      - run: pip2 install -U simplejson
+      - run: pip3 install -U simplejson
       - checkout
-      - run: LANG=C.UTF-8 pip2 install .
+      - run: LANG=C.UTF-8 pip3 install .
       # lint
-      - run: pylint launchpadtools/
+      - run: LC_ALL=C.UTF-8 black --check setup.py launchpadtools/ test/*.py
+      - run: flake8 setup.py launchpadtools/ test/*.py
       # The tests
       - run: ./test/dockergc.sh
       - run: cd test/ && pytest --cov launchpadtools
