@@ -111,10 +111,10 @@ def _create_tarball(directory, tarball, prefix, excludes=None):
         'tar',
         '--transform', transform,
         '-czf', tarball,
-        directory
         ]
     for exclude in excludes:
         cmd.append('--exclude=%s' % exclude)
+    cmd.append(directory)
 
     subprocess.check_call(cmd, env={'GZIP': '-n'})
 
@@ -277,7 +277,7 @@ def _submit(
     orig_tarball = orig_tarballs[0]
 
     # Assert tarball at
-    #     /work_dir/trilinos_4.3.1.2~20121123-01b3a567.tar.gz.
+    #     /work_dir/trilinos_4.3.1.2~20121123-01b3a567.orig.tar.gz.
     #
     _, ext = os.path.splitext(orig_tarball)
     tarball_dest = '%s_%s.orig.tar%s' % (name, upstream_version, ext)
@@ -377,7 +377,7 @@ def _submit(
 
     # Debian's dput must be told about the launchpad PPA via a config
     # file. Make it temporary.
-    filename = os.path.join(work_dir, 'dput.cf')
+    dput_config = os.path.join(work_dir, 'dput.cf')
     # Try using SFTP here first; amongst other things, it's more robust against
     # flaky connections.
     # Note that launchpad must have a valid public key, and
@@ -389,7 +389,7 @@ def _submit(
         ]
     success = False
     for method, login_name in configs:
-        with open(filename, 'w') as f:
+        with open(dput_config, 'w') as f:
             f.write('''[%s-nightly]
 fqdn = ppa.launchpad.net
 method = %s
@@ -399,7 +399,7 @@ allow_unsigned_uploads = 0''' % (name, method, ppa_string, login_name))
         try:
             subprocess.check_call([
                 'dput',
-                '-c', filename,
+                '-c', dput_config,
                 '%s-nightly' % name,
                 '%s_%s_source.changes' % (name, chlog_version)
                 ])
