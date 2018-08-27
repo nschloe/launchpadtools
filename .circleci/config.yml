@@ -1,36 +1,26 @@
 version: 2
 
 jobs:
-
   # python2:
   build:
-    working_directory: ~/launchpadtools
+    working_directory: ~/work
     docker:
-      - image: ubuntu:17.04
+      - image: ubuntu:18.04
     steps:
       - run: apt-get update
-      - run: apt-get install -y python-pip git quilt devscripts debhelper
-      - run: pip2 install -U pytest pytest-cov pylint
+      - run: apt-get install -y python3-pip git quilt devscripts debhelper
+      - run: pip3 install -U pytest pytest-cov black flake8
       # some dependency doesn't specify its dependencies correctly; perhaps
       # launchpadlib
-      - run: pip2 install -U simplejson
+      - run: pip3 install -U simplejson
       - checkout
-      - run: LANG=C.UTF-8 pip2 install .
+      - run: LANG=C.UTF-8 pip3 install .
       # lint
-      - run: pylint launchpadtools/
-
+      - run: LC_ALL=C.UTF-8 black --check setup.py launchpadtools/ test/*.py
+      - run: flake8 setup.py launchpadtools/ test/*.py
       # The tests
       - run: ./test/dockergc.sh
       - run: cd test/ && pytest --cov launchpadtools
       # submit to codecov
       - run: apt-get install -y curl
       - run: bash <(curl -s https://codecov.io/bash)
-
-# workflow builds don't support forked PRs yet, cf.
-# <https://circleci.com/docs/2.0/faq/#can-i-build-fork-prs-using-workflows>.
-# workflows:
-#   version: 2
-#   build-and-test:
-#     jobs:
-#       - python2
-#       - python3

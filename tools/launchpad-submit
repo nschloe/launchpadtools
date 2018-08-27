@@ -1,74 +1,74 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-'''
+"""
 Automatically create tarball and submit it to launchpad.
-'''
+"""
 import argparse
 import launchpadtools
 
 
 def _parse_cmd_arguments():
-    parser = argparse.ArgumentParser(description='Submit builds to launchpad.')
+    parser = argparse.ArgumentParser(description="Submit builds to launchpad.")
     parser.add_argument(
-        '-w', '--work-dir',
-        help='Working directory. Has to contain `./orig/` and `./orig/debian`.'
-        )
+        "-w",
+        "--work-dir",
+        help="Working directory. Has to contain `./orig/` and `./orig/debian`.",
+    )
     parser.add_argument(
-        '-u', '--ubuntu-releases',
-        help='Ubuntu releases to build for',
+        "-u",
+        "--ubuntu-releases",
+        help="Ubuntu releases to build for",
         required=True,
-        nargs='+'
-        )
+        nargs="+",
+    )
+    parser.add_argument("-p", "--ppa", help="PPA to submit to", type=str, required=True)
     parser.add_argument(
-        '-p', '--ppa',
-        help='PPA to submit to',
+        "-l",
+        "--launchpad-login",
+        help="login name on launchpad (for SFTP)",
         type=str,
-        required=True
-        )
+        required=True,
+    )
     parser.add_argument(
-        '-l', '--launchpad-login',
-        help='login name on launchpad (for SFTP)',
+        "-o", "--version-override", help="Override package version", type=str
+    )
+    parser.add_argument(
+        "-a",
+        "--version-append-hash",
+        help="Append code hash to version (useful for deduplication)",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--update-patches",
+        help="Automatically update patches",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        help="Force submission even if build is already uploaded",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "-b",
+        "--debuild-params",
+        help="extra parameters passed to debuild",
         type=str,
-        required=True
-        )
+        default="",
+    )
     parser.add_argument(
-        '-o', '--version-override',
-        help='Override package version',
-        type=str
-        )
-    parser.add_argument(
-        '-a', '--version-append-hash',
-        help='Append code hash to version (useful for deduplication)',
-        action='store_true',
-        default=False
-        )
-    parser.add_argument(
-        '--update-patches',
-        help='Automatically update patches',
-        action='store_true',
-        default=False
-        )
-    parser.add_argument(
-        '-f', '--force',
-        help='Force submission even if build is already uploaded',
-        action='store_true',
-        default=False
-        )
-    parser.add_argument(
-        '-b', '--debuild-params',
-        help='extra parameters passed to debuild',
-        type=str,
-        default=''
-        )
-    parser.add_argument(
-        '-v', '--version',
-        action='version',
-        version='launchpadtools %s' % launchpadtools.__version__
-        )
+        "-v",
+        "--version",
+        action="version",
+        version="launchpadtools %s" % launchpadtools.__version__,
+    )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = _parse_cmd_arguments()
 
     launchpadtools.submit.submit(
@@ -81,4 +81,4 @@ if __name__ == '__main__':
         args.version_append_hash,
         args.force,
         args.update_patches,
-        )
+    )
