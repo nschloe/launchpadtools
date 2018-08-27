@@ -3,6 +3,7 @@ Launchpad tools
 
 [![Build Status](https://travis-ci.org/nschloe/launchpadtools.svg?branch=master)](https://travis-ci.org/nschloe/launchpadtools)
 [![codecov](https://codecov.io/gh/nschloe/launchpadtools/branch/master/graph/badge.svg)](https://codecov.io/gh/nschloe/launchpadtools)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![PyPi Version](https://img.shields.io/pypi/v/launchpadtools.svg)](https://pypi.python.org/pypi/launchpadtools)
 [![GitHub stars](https://img.shields.io/github/stars/nschloe/launchpadtools.svg?logo=github&label=Stars&logoColor=white)](https://github.com/nschloe/launchpadtools)
 
