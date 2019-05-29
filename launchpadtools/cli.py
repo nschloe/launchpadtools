@@ -10,9 +10,10 @@ import launchpadtools
 def _parse_cmd_arguments():
     parser = argparse.ArgumentParser(description="Submit builds to launchpad.")
     parser.add_argument(
-        "-w",
-        "--work-dir",
-        help="Working directory. Has to contain `./orig/` and `./orig/debian`.",
+        "-d",
+        "--directory",
+        required=True,
+        help="Directory to submit. Must contain sources and ./debian`.",
     )
     parser.add_argument(
         "-u",
@@ -71,7 +72,7 @@ def _parse_cmd_arguments():
 def main():
     args = _parse_cmd_arguments()
     launchpadtools.submit.submit(
-        args.work_dir,
+        args.directory,
         args.ubuntu_releases,
         args.ppa,
         args.launchpad_login,

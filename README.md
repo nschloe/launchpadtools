@@ -13,10 +13,10 @@ Some tools for easy submission to launchpad.
 
 All options are documented under `launchpad-submit -h`.
 
-Sometimes, you may want to submit a source package with a Debian configuration
-that is available somewhere else. This may help setting up a nightly submission
-process. As an example, take the nightly submission script for a
-[Mixxx PPA](https://launchpad.net/~nschloe/+archive/ubuntu/mixxx-nightly).
+Sometimes, you may want to submit a source package with a Debian configuration that is
+available somewhere else. This may help setting up a nightly submission process. As an
+example, take the nightly submission script for a [Mixxx
+PPA](https://launchpad.net/~nschloe/+archive/ubuntu/mixxx-nightly).
 
 ```
 #!/bin/sh -ue
@@ -25,20 +25,19 @@ TMP_DIR=$(mktemp -d)
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
 
-ORIG_DIR="$TMP_DIR/orig"
 CACHE="$HOME/.cache/repo/mixxx"
 git -C "$CACHE" pull || git clone "https://github.com/mixxxdj/mixxx.git" "$CACHE"
-git clone --shared "$CACHE" "$ORIG_DIR"
+git clone --shared "$CACHE" "$TMP_DIR"
 
-VERSION=$(grep "define MIXXX_VERSION" "$ORIG_DIR/src/defs_version.h" | sed "s/[^0-9]*\([0-9][\.0-9]*\).*/\1/")
+VERSION=$(grep "define MIXXX_VERSION" "$TMP_DIR/src/defs_version.h" | sed "s/[^0-9]*\([0-9][\.0-9]*\).*/\1/")
 FULL_VERSION="$VERSION~$(date +"%Y%m%d%H%M%S")"
 
 CACHE="$HOME/.cache/repo/mixxx-debian"
 git -C "$CACHE" pull || git clone "git://anonscm.debian.org/git/pkg-multimedia/mixxx.git" "$CACHE"
-rsync -a "$CACHE/debian" "$ORIG_DIR"
+rsync -a "$CACHE/debian" "$TMP_DIR"
 
 launchpad-submit \
-  --work-dir "$TMP_DIR" \
+  --directory "$TMP_DIR" \
   --ubuntu-releases trusty xenial yakkety zesty \
   --ppa nschloe/mixxx-nightly \
   --version-override "$FULL_VERSION" \
@@ -49,8 +48,8 @@ launchpad-submit \
 ### Installation
 
 The launchpad tools are [available from the Python Package
-Index](https://pypi.python.org/pypi/launchpadtools/), so for
-installation/upgrading simply do
+Index](https://pypi.python.org/pypi/launchpadtools/), so for installation/upgrading
+simply do
 ```
 pip3 install launchpadtools --user
 ```
