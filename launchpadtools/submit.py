@@ -322,8 +322,7 @@ def _submit(
     # Unable to find matplotlib_2.0.0~beta4.orig.tar.gz in upload or distribution.
     # ```
     # Hence, remove old changelog and create it anew.
-    os.chdir(os.path.join(work_dir, prefix))
-    os.remove("debian/changelog")
+    os.remove(os.path.join(work_dir, prefix, "debian", "changelog"))
     subprocess.check_call(
         [
             "dch",
@@ -336,14 +335,14 @@ def _submit(
             "--distribution",
             ubuntu_release,
             "launchpad-submit update",
-        ]
+        ],
+        cwd=os.path.join(work_dir, prefix),
     )
 
     if dry:
         return
 
     # Call debuild, the actual workhorse
-    os.chdir(os.path.join(work_dir, prefix))
     subprocess.check_call(
         [
             "debuild",
@@ -354,11 +353,11 @@ def _submit(
             "--lintian-opts",
             "-EvIL",
             "+pedantic",
-        ]
+        ],
+        cwd=os.path.join(work_dir, prefix),
     )
 
     # Submit to launchpad.
-    os.chdir(os.pardir)
     print()
     print(f"Uploading to PPA {ppa_string}...")
     print()
@@ -369,7 +368,8 @@ def _submit(
         f"{name}_{chlog_version}_source.changes",
         f"{name}_{upstream_version}.orig.tar.gz",
     ]:
-        print("    {}: {}".format(filename, _get_filesize(filename)))
+        size_str = _get_filesize(os.path.join(work_dir, filename))
+        print(f"    {filename}: {size_str}")
     print()
 
     # Alternative upload from Ubuntu:
@@ -410,7 +410,8 @@ allow_unsigned_uploads = 0"""
                     dput_config,
                     f"{name}-nightly",
                     f"{name}_{chlog_version}_source.changes",
-                ]
+                ],
+                os.chdir(work_dir),
             )
         except subprocess.CalledProcessError as exception:
             print("Command:")
@@ -435,37 +436,44 @@ def _update_patches(directory):
     robust, so use that here to update the Debian patches.
     """
     print("Updating patches...")
-    os.chdir(directory)
 
     # We need the number of patches so we don't call `quilt push` too often.
     out = subprocess.check_output(
-        ["quilt", "series"], env={"QUILT_PATCHES": "debian/patches"}
+        ["quilt", "series"], env={"QUILT_PATCHES": "debian/patches"}, cwd=directory
     )
     all_patches = out.decode("utf-8").split("\n")[:-1]
 
     for patch in all_patches:
         try:
             subprocess.check_call(
-                ["quilt", "push"], env={"QUILT_PATCHES": "debian/patches"}
+                ["quilt", "push"],
+                env={"QUILT_PATCHES": "debian/patches"},
+                cwd=directory,
             )
             subprocess.check_call(
-                ["quilt", "refresh"], env={"QUILT_PATCHES": "debian/patches"}
+                ["quilt", "refresh"],
+                env={"QUILT_PATCHES": "debian/patches"},
+                cwd=directory,
             )
         except subprocess.CalledProcessError:
             # If applied and refreshing the patch didn't work, remove it.
             print("Deleting patch {patch}...")
             subprocess.check_call(
-                ["quilt", "delete", "-nr"], env={"QUILT_PATCHES": "debian/patches"}
+                ["quilt", "delete", "-nr"],
+                env={"QUILT_PATCHES": "debian/patches"},
+                cwd=directory,
             )
 
     # undo all patches; only the changes in the debian/patches/ remain.
     out = subprocess.check_output(
-        ["quilt", "series"], env={"QUILT_PATCHES": "debian/patches"}
+        ["quilt", "series"], env={"QUILT_PATCHES": "debian/patches"}, cwd=directory
     )
     all_patches = out.decode("utf-8").split("\n")[:-1]
     if all_patches:
         subprocess.check_call(
-            ["quilt", "pop", "-a"], env={"QUILT_PATCHES": "debian/patches"}
+            ["quilt", "pop", "-a"],
+            env={"QUILT_PATCHES": "debian/patches"},
+            cwd=directory,
         )
 
     # Remove the ubuntu.series file since it's not handled by quilt.
