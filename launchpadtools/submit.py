@@ -81,9 +81,9 @@ def _sizeof_fmt(num, suffix="B"):
     # <http://stackoverflow.com/a/1094933/353337>
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         if abs(num) < 1024.0:
-            return "%3.1f%s%s" % (num, unit, suffix)
+            return "{:3.1f}{}{}".format(num, unit, suffix)
         num /= 1024.0
-    return "%.1f%s%s" % (num, "Yi", suffix)
+    return "{:.1f}{}{}".format(num, "Yi", suffix)
 
 
 def _create_tarball(directory, tarball, prefix, excludes=None):
@@ -100,13 +100,13 @@ def _create_tarball(directory, tarball, prefix, excludes=None):
     # <http://serverfault.com/a/110244/132462>.
     # Also, replace the leading `repo_dir` by `prefix`.
     repo_dir_without_leading_slash = directory[1:] if directory[0] == "/" else directory
-    transform = "s/^%s/%s/" % (
+    transform = "s/^{}/{}/".format(
         repo_dir_without_leading_slash.replace("/", "\\/"),
         prefix,
     )
     cmd = ["tar", "--transform", transform, "-czf", tarball]
     for exclude in excludes:
-        cmd.append("--exclude=%s" % exclude)
+        cmd.append(f"--exclude={exclude}")
     cmd.append(directory)
 
     subprocess.check_call(cmd, env={"GZIP": "-n"})
@@ -119,7 +119,7 @@ def _release_has_same_hash(name, tree_hash_short, ppa, ubuntu_release):
     published_in_series = ppa.getPublishedSources(
         source_name=name,
         status="Published",
-        distro_series=("https://api.launchpad.net/1.0/ubuntu/%s" % ubuntu_release),
+        distro_series=(f"https://api.launchpad.net/1.0/ubuntu/{ubuntu_release}"),
     )
 
     has_same_hash = False
@@ -161,7 +161,7 @@ def submit(
     tic = time.time()
     tree_hash_short = _get_tree_hash(orig_dir)[:8]
     elapsed_time = time.time() - tic
-    print("done (%s, took %.1fs)." % (tree_hash_short, elapsed_time))
+    print("done ({}, took {:.1f}s).".format(tree_hash_short, elapsed_time))
 
     # check which ubuntu series we need to submit to
     if force:
@@ -185,7 +185,7 @@ def submit(
         print("\nEverything up-to-date. No submissions necessary.\n")
         return
 
-    print("\n\nSubmitting to %s.\n" % ", ".join(submit_releases))
+    print("\n\nSubmitting to {}.\n".format(", ".join(submit_releases)))
 
     # Dissect version in upstream, debian/ubuntu parts.
     epoch, upstream_version, debian_version, ubuntu_version = _parse_package_version(
@@ -205,18 +205,18 @@ def submit(
     # it possible to increment `x` and have launchpad recognize it as a new
     # version.
     if version_append_hash:
-        upstream_version += "-%s" % tree_hash_short
+        upstream_version += f"-{tree_hash_short}"
 
     # Create orig tarball (without the Debian folder).
     orig_tarball = os.path.join(
-        work_dir, "%s_%s.orig.tar.gz" % (name, upstream_version)
+        work_dir, f"{name}_{upstream_version}.orig.tar.gz"
     )
     prefix = name + "-" + upstream_version
     print("Creating tarball...")
     tic = time.time()
     _create_tarball(orig_dir, orig_tarball, prefix, excludes=["./debian"])
     elapsed_time = time.time() - tic
-    print("done (%s, took %.1fs).\n" % (_get_filesize(orig_tarball), elapsed_time))
+    print("done ({}, took {:.1f}s).\n".format(_get_filesize(orig_tarball), elapsed_time))
 
     for ubuntu_release in submit_releases:
         try:
@@ -264,7 +264,7 @@ def _submit(
     #     /work_dir/trilinos_4.3.1.2~20121123-01b3a567.orig.tar.gz.
     #
     _, ext = os.path.splitext(orig_tarball)
-    tarball_dest = "%s_%s.orig.tar%s" % (name, upstream_version, ext)
+    tarball_dest = f"{name}_{upstream_version}.orig.tar{ext}"
     assert os.path.isfile(os.path.join(work_dir, tarball_dest))
 
     # Get last component of `orig_dir`, cf.
@@ -287,9 +287,9 @@ def _submit(
     if debian_version:
         chlog_version += debian_version
     if ubuntu_version:
-        chlog_version += "%s%s" % (ubuntu_release, ubuntu_version)
+        chlog_version += ubuntu_release + ubuntu_version
     else:
-        chlog_version += "%s1" % ubuntu_release
+        chlog_version += ubuntu_release + "1"
 
     slot_version = chlog_version
     if slot:
@@ -346,24 +346,24 @@ def _submit(
     # Submit to launchpad.
     os.chdir(os.pardir)
     print()
-    print("Uploading to PPA %s..." % ppa_string)
+    print(f"Uploading to PPA {ppa_string}...")
     print()
     for filename in [
-        # '%s_%s.debian.tar.xz' % (name, chlog_version),
-        "%s_%s.dsc" % (name, chlog_version),
-        "%s_%s_source.build" % (name, chlog_version),
-        "%s_%s_source.changes" % (name, chlog_version),
-        "%s_%s.orig.tar.gz" % (name, upstream_version),
+        # '{}_{}.debian.tar.xz'.format(name, chlog_version),
+        f"{name}_{chlog_version}.dsc",
+        f"{name}_{chlog_version}_source.build",
+        f"{name}_{chlog_version}_source.changes",
+        f"{name}_{upstream_version}.orig.tar.gz",
     ]:
-        print("    %s: %s" % (filename, _get_filesize(filename)))
+        print("    {}: {}".format(filename, _get_filesize(filename)))
     print()
 
     # Alternative upload from Ubuntu:
     # ```
     # subprocess.check_call([
     #     'dput',
-    #     'ppa:%s' % ppa_string,
-    #     '%s_%s_source.changes' % (name, chlog_version)
+    #     'ppa:{}'.format(ppa_string),
+    #     '{}_{}_source.changes'.format(name, chlog_version)
     #     ])
     # ```
     # This does not take SFTP however.
@@ -381,13 +381,12 @@ def _submit(
     for method, login_name in configs:
         with open(dput_config, "w") as f:
             f.write(
-                """[%s-nightly]
+                f"""[{name}-nightly]
 fqdn = ppa.launchpad.net
-method = %s
-incoming = ~%s/ubuntu/
-login = %s
+method = {method}
+incoming = ~{ppa_string}/ubuntu/
+login = {login_name}
 allow_unsigned_uploads = 0"""
-                % (name, method, ppa_string, login_name)
             )
         try:
             subprocess.check_call(
@@ -395,8 +394,8 @@ allow_unsigned_uploads = 0"""
                     "dput",
                     "-c",
                     dput_config,
-                    "%s-nightly" % name,
-                    "%s_%s_source.changes" % (name, chlog_version),
+                    f"{name}-nightly",
+                    f"{name}_{chlog_version}_source.changes",
                 ]
             )
         except subprocess.CalledProcessError as exception:
@@ -440,7 +439,7 @@ def _update_patches(directory):
             )
         except subprocess.CalledProcessError:
             # If applied and refreshing the patch didn't work, remove it.
-            print("Deleting patch %s..." % patch)
+            print("Deleting patch {patch}...")
             subprocess.check_call(
                 ["quilt", "delete", "-nr"], env={"QUILT_PATCHES": "debian/patches"}
             )
