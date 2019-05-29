@@ -2,14 +2,12 @@ Launchpad tools
 ===============
 
 [![Build Status](https://travis-ci.org/nschloe/launchpadtools.svg?branch=master)](https://travis-ci.org/nschloe/launchpadtools)
-[![codecov](https://codecov.io/gh/nschloe/launchpadtools/branch/master/graph/badge.svg)](https://codecov.io/gh/nschloe/launchpadtools)
+[![codecov](https://img.shields.io/codecov/c/github/nschloe/launchpadtools.svg)](https://codecov.io/gh/nschloe/launchpadtools)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![PyPi Version](https://img.shields.io/pypi/v/launchpadtools.svg)](https://pypi.python.org/pypi/launchpadtools)
 [![GitHub stars](https://img.shields.io/github/stars/nschloe/launchpadtools.svg?logo=github&label=Stars&logoColor=white)](https://github.com/nschloe/launchpadtools)
 
-
 Some tools for easy submission to launchpad.
-
 
 ### Usage
 
@@ -50,34 +48,12 @@ launchpad-submit \
 
 ### Installation
 
-#### Python Package Index
-
 The launchpad tools are [available from the Python Package
 Index](https://pypi.python.org/pypi/launchpadtools/), so for
 installation/upgrading simply do
 ```
-pip install -U launchpadtools
+pip3 install launchpadtools --user
 ```
-
-#### Manual installation
-
-Download the launchpad tools from
-[the Python Package Index](https://pypi.python.org/pypi/launchpadtools/).
-Place the launchpad tools in a directory where Python can find it (e.g.,
-`$PYTHONPATH`).  You can install it system-wide with
-```
-python setup.py install
-```
-
-### Distribution
-To create a new release
-
-1. bump the `__version__` number and
-
-2. tag and upload to PyPi:
-    ```
-    $ make publish
-    ```
 
 ### License
 
