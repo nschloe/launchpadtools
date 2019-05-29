@@ -58,10 +58,10 @@ def _get_tree_hash(directory):
     except git.InvalidGitRepositoryError:
         repo = git.Repo.init(directory)
 
-    # The add step can take really long if many files need to be added.
-    # Use git's own `git add -A` rather than GitPython's repo.index.add('*')
-    # since the latter takes a really long time if the repo is large, even if
-    # it's already almost completely checked in.
+    # The add step can take really long if many files need to be added.  Use git's own
+    # `git add -A` rather than GitPython's repo.index.add('*') since the latter takes a
+    # really long time if the repo is large, even if it's already almost completely
+    # checked in.
     repo.git.add("-A")
     repo.index.commit("launchpadtools commit")
     tree_hash = repo.tree().hexsha
@@ -94,10 +94,9 @@ def _create_tarball(directory, tarball, prefix, excludes=None):
 
     if os.path.isfile(tarball):
         os.remove(tarball)
-    # We need to make sure that the same content ends up with a tar archive
-    # that has the same checksums. Unfortunately, by default, gzip contains
-    # time stamps. Stripping them helps
-    # <http://serverfault.com/a/110244/132462>.
+    # We need to make sure that the same content ends up with a tar archive that has the
+    # same checksums. Unfortunately, by default, gzip contains time stamps. Stripping
+    # them helps <http://serverfault.com/a/110244/132462>.
     # Also, replace the leading `repo_dir` by `prefix`.
     repo_dir_without_leading_slash = directory[1:] if directory[0] == "/" else directory
     transform = "s/^{}/{}/".format(
@@ -199,10 +198,9 @@ def submit(
         debian_version = "1"
         ubuntu_version = "1"
 
-    # Use the `-` as a separator (instead of `~` as it's often used) to
-    # make sure that ${UBUNTU_RELEASE}x isn't part of the name. This makes
-    # it possible to increment `x` and have launchpad recognize it as a new
-    # version.
+    # Use the `-` as a separator (instead of `~` as it's often seen) to make sure that
+    # ${UBUNTU_RELEASE}x isn't part of the name. This makes it possible to increment `x`
+    # and have launchpad recognize it as a new version.
     if version_append_hash:
         upstream_version += f"-{tree_hash_short}"
 
@@ -274,9 +272,9 @@ def _submit(
     debian_dir = os.path.join(work_dir, prefix, "debian")
     assert os.path.isdir(debian_dir)
 
-    # We cannot use "-ubuntu1" as a suffix here since we'd like to submit for
-    # multiple ubuntu releases. If the version strings were exactly the same,
-    # the following error is produced on upload:
+    # We cannot use "-ubuntu1" as a suffix here since we'd like to submit for multiple
+    # ubuntu releases. If the version strings were exactly the same, the following error
+    # is produced on upload:
     #
     #   File gmsh_2.12.1~20160512220459-ef262f68-ubuntu1.debian.tar.gz
     #   already exists in Gmsh nightly, but uploaded version has different
@@ -295,16 +293,14 @@ def _submit(
         slot_version = slot + ":" + chlog_version
 
     # From `man dpkg-genchanges`:
-    # By default, or if specified, the original source will be included only if
-    # the upstream version number (the version without epoch and without Debian
-    # revision) differs from the upstream version number of the previous
-    # changelog entry.
+    # By default, or if specified, the original source will be included only if the
+    # upstream version number (the version without epoch and without Debian revision)
+    # differs from the upstream version number of the previous changelog entry.
     #
-    # This means that, if this version and the last coincide, the source will
-    # not be uploaded, leading to launchpad errors of the kind
+    # This means that, if this version and the last coincide, the source will not be
+    # uploaded, leading to launchpad errors of the kind
     # ```
-    # Unable to find matplotlib_2.0.0~beta4.orig.tar.gz in upload or
-    # distribution.
+    # Unable to find matplotlib_2.0.0~beta4.orig.tar.gz in upload or distribution.
     # ```
     # Hence, remove old changelog and create it anew.
     os.chdir(os.path.join(work_dir, prefix))
@@ -348,7 +344,7 @@ def _submit(
     print(f"Uploading to PPA {ppa_string}...")
     print()
     for filename in [
-        # '{}_{}.debian.tar.xz'.format(name, chlog_version),
+        # f"{name}_{chlog_version}.debian.tar.xz",
         f"{name}_{chlog_version}.dsc",
         f"{name}_{chlog_version}_source.build",
         f"{name}_{chlog_version}_source.changes",
@@ -367,13 +363,13 @@ def _submit(
     # ```
     # This does not take SFTP however.
 
-    # Debian's dput must be told about the launchpad PPA via a config
-    # file. Make it temporary.
+    # Debian's dput must be told about the launchpad PPA via a config file. Make it
+    # temporary.
     dput_config = os.path.join(work_dir, "dput.cf")
-    # Try using SFTP here first; amongst other things, it's more robust against
-    # flaky connections.
-    # Note that launchpad must have a valid public key, and
-    # ppa.launchpad.net must have been added to the list of known hosts.
+    # Try using SFTP here first; amongst other things, it's more robust against flaky
+    # connections.
+    # Note that launchpad must have a valid public key, and ppa.launchpad.net must have
+    # been added to the list of known hosts.
     # See <https://unix.stackexchange.com/a/368141/40432>.
     configs = [("sftp", launchpad_login_name), ("ftp", "anonymous")]
     success = False
@@ -457,5 +453,4 @@ def _update_patches(directory):
     ubuntu_series = os.path.join(directory, "debian", "patches", "ubuntu.series")
     if os.path.isfile(ubuntu_series):
         os.remove(ubuntu_series)
-
     return
