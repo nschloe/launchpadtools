@@ -1,7 +1,6 @@
 version: 2
 
 jobs:
-  # python2:
   build:
     working_directory: ~/work
     docker:

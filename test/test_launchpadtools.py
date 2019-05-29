@@ -5,7 +5,7 @@ import launchpadtools
 
 def test():
     launchpadtools.submit.submit(
-        work_dir="/tmp/dockergc-test-launchpadtools/",
+        directory="/tmp/dockergc-test-launchpadtools/",
         ubuntu_releases=["xenial"],
         ppa_string="nschloe/docker-gc-nightly",
         launchpad_login_name="johndoe",
