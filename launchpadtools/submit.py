@@ -101,8 +101,7 @@ def _create_tarball(directory, tarball, prefix, excludes=None):
     # Also, replace the leading `repo_dir` by `prefix`.
     repo_dir_without_leading_slash = directory[1:] if directory[0] == "/" else directory
     transform = "s/^{}/{}/".format(
-        repo_dir_without_leading_slash.replace("/", "\\/"),
-        prefix,
+        repo_dir_without_leading_slash.replace("/", "\\/"), prefix
     )
     cmd = ["tar", "--transform", transform, "-czf", tarball]
     for exclude in excludes:
@@ -208,15 +207,15 @@ def submit(
         upstream_version += f"-{tree_hash_short}"
 
     # Create orig tarball (without the Debian folder).
-    orig_tarball = os.path.join(
-        work_dir, f"{name}_{upstream_version}.orig.tar.gz"
-    )
+    orig_tarball = os.path.join(work_dir, f"{name}_{upstream_version}.orig.tar.gz")
     prefix = name + "-" + upstream_version
     print("Creating tarball...")
     tic = time.time()
     _create_tarball(orig_dir, orig_tarball, prefix, excludes=["./debian"])
     elapsed_time = time.time() - tic
-    print("done ({}, took {:.1f}s).\n".format(_get_filesize(orig_tarball), elapsed_time))
+    print(
+        "done ({}, took {:.1f}s).\n".format(_get_filesize(orig_tarball), elapsed_time)
+    )
 
     for ubuntu_release in submit_releases:
         try:
@@ -361,9 +360,9 @@ def _submit(
     # Alternative upload from Ubuntu:
     # ```
     # subprocess.check_call([
-    #     'dput',
-    #     'ppa:{}'.format(ppa_string),
-    #     '{}_{}_source.changes'.format(name, chlog_version)
+    #     "dput",
+    #     f"ppa:{ppa_string}",
+    #     f"{name}_{chlog_version}_source.changes"
     #     ])
     # ```
     # This does not take SFTP however.
