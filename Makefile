@@ -24,8 +24,8 @@ clean:
 	@rm -rf *.egg-info/ build/ dist/ MANIFEST
 
 lint:
-	black --check setup.py launchpadtools/ test/*.py tools/
-	flake8 setup.py launchpadtools/ test/*.py tools/
+	black --check setup.py launchpadtools/ test/*.py
+	flake8 setup.py launchpadtools/ test/*.py
 
 black:
-	black setup.py launchpadtools/ test/*.py tools/*
+	black setup.py launchpadtools/ test/*.py
