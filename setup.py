@@ -21,7 +21,7 @@ setup(
     author=about["__author__"],
     author_email=about["__author_email__"],
     packages=find_packages(),
-    description="Tools for Debian/Ubuntu Launchpad",
+    description="Tools for submitting packages to Ubuntu Launchpad",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     url="https://github.com/nschloe/launchpadtools",
@@ -38,5 +38,5 @@ setup(
         "Topic :: Software Development :: Build Tools",
         "Topic :: System :: Operating System",
     ],
-    scripts=["tools/launchpad-submit"],
+    entry_points={"console_scripts": ["launchpad-submit = launchpadtools.cli:main"]},
 )

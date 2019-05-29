@@ -68,9 +68,8 @@ def _parse_cmd_arguments():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = _parse_cmd_arguments()
-
     launchpadtools.submit.submit(
         args.work_dir,
         args.ubuntu_releases,
@@ -82,3 +81,4 @@ if __name__ == "__main__":
         args.force,
         args.update_patches,
     )
+    return
