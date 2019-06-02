@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-from __future__ import print_function
-
+import datetime
 from distutils.dir_util import copy_tree
 import os
 import re
@@ -149,6 +148,7 @@ def submit(
     launchpad_login_name,
     debuild_params="",
     version_override=None,
+    version_append_datetime=False,
     version_append_hash=False,
     force=False,
     do_update_patches=False,
@@ -160,7 +160,7 @@ def submit(
     with tempfile.TemporaryDirectory() as work_dir:
         orig_dir = os.path.join(work_dir, "orig")
 
-        print("Copying directory...")
+        print("Copying to temporary directory...")
         tic = time.time()
         copy_tree(directory, orig_dir)
         # remove git folder
@@ -183,7 +183,7 @@ def submit(
             submit_releases = ubuntu_releases
         else:
             # Check if this version has already been published.
-            print("\nCheck for tree hash on PPA...")
+            print("\nChecking for tree hash on PPA...")
             launchpad = Launchpad.login_anonymously("foo", "production", None)
             ppa_owner, ppa_name = tuple(ppa_string.split("/"))
             owner = launchpad.people[ppa_owner]
@@ -214,6 +214,10 @@ def submit(
             upstream_version = version_override
             debian_version = "1"
             ubuntu_version = "1"
+
+        if version_append_datetime:
+            dt = datetime.datetime.now().strftime("%Y%m%d%H%M")
+            upstream_version += f"-{dt}"
 
         # Use the `-` as a separator (instead of `~` as it's often seen) to make sure that
         # ${UBUNTU_RELEASE}x isn't part of the name. This makes it possible to increment `x`
