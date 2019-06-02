@@ -34,6 +34,13 @@ def _parse_cmd_arguments():
         "-o", "--version-override", help="Override package version", type=str
     )
     parser.add_argument(
+        "-t",
+        "--version-append-datetime",
+        help="Append date/time to version (useful for avoiding upload rejection from launchpad)",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "-a",
         "--version-append-hash",
         help="Append code hash to version (useful for deduplication)",
@@ -78,6 +85,7 @@ def main():
         args.launchpad_login,
         args.debuild_params,
         args.version_override,
+        args.version_append_datetime,
         args.version_append_hash,
         args.force,
         args.update_patches,

@@ -27,7 +27,7 @@ setup(
     url="https://github.com/nschloe/launchpadtools",
     license=about["__license__"],
     platforms="any",
-    install_requires=["GitPython", "launchpadlib"],
+    install_requires=["GitPython", "launchpadlib", "paramiko"],
     classifiers=[
         about["__status__"],
         about["__license__"],
